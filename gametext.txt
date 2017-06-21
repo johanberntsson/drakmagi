@@ -1,0 +1,921 @@
+Transcript of the text of "drakmagi.inf"
+[From Inform 6.30 for Win32 (27th Feb 2004)]
+
+Drakmagi
+^(c) 2003 Johan Berntsson. Skriv ~hjälp~ eller ~h~ för instruktioner.^
+040227
+6/11
+a
+---
+the
+CompassDirection
+compass
+north
+south
+east
+west
+northeast
+northwest
+southeast
+southwest
+up above
+ground
+inside
+outside
+The 
+the 
+a 
+The 
+the 
+an 
+The 
+the 
+some 
+The 
+the 
+some 
+north
+south
+east
+west
+northeast
+northwest
+southeast
+southwest
+up
+down
+in
+out
+zero
+minus 
+ thousand
+, 
+ hundred
+ and 
+one
+two
+three
+four
+five
+six
+seven
+eight
+nine
+ten
+eleven
+twelve
+thirteen
+fourteen
+fifteen
+sixteen
+seventeen
+eighteen
+nineteen
+twenty
+thirty
+forty
+fifty
+sixty
+seventy
+eighty
+ninety
+-
+ 
+:
+ pm
+ am
+take inventory
+look
+examine
+wait
+N = next subject
+P = previous
+  Q = resume game
+Q = previous menu
+RETURN = read subject
+Score: 
+Moves: 
+Time: 
+You can't go that way.
+your former self
+yourself
+You
+Darkness
+those things
+that
+ or 
+nothing
+ is
+ are
+is 
+are 
+ and 
+whom 
+which 
+, 
+you
+those
+her
+him
+that
+yourself
+them
+her
+him
+it
+are
+is
+You
+Those
+She
+He
+That
+You're
+They're
+She's
+He's
+That's
+There is no reply.
+Violence isn't the answer to this one.
+You can't usefully blow 
+.
+This dangerous act would achieve little.
+Nothing is on sale.
+I don't think much is to be achieved by that.
+ not something you can close.
+ already closed.
+You close 
+.
+[Command recording off.]
+[Command recording already off.]
+[Command recording on.]
+[Commands are currently replaying.]
+[Command recording already on.]
+[Command recording failed.]
+[Replaying commands.]
+[Commands are already replaying.]
+[Command replay failed.  Command recording is on.]
+[Command replay failed.]
+[Command replay complete.]
+You discover nothing of interest in 
+.
+Cutting 
+ up would achieve little.
+Digging would achieve nothing here.
+You're not wearing 
+.
+You take off 
+.
+There's nothing suitable to drink here.
+ are 
+ is 
+already here.
+You haven't got 
+.
+(first taking 
+ off)
+Dropped.
+ plainly inedible.
+You eat 
+. Not bad.
+ can't contain things.
+ 
+ closed.
+ 
+ empty already.
+That would scarcely empty anything.
+But you're already 
+on 
+in 
+.
+They're
+That's
+ not something you can 
+stand on.
+sit down on.
+lie down on.
+enter.
+You can't get into the closed 
+.
+You can only get into something free-standing.
+You get 
+onto 
+into 
+.
+(getting 
+off 
+out of 
+)
+(getting onto 
+)^
+(getting into 
+)^
+(entering 
+)^
+Darkness, noun.  An absence of light to see by.
+You see nothing special about 
+.
+ 
+ currently switched 
+on.
+off.
+But you aren't in anything at the moment.
+You can't get out of the closed 
+.
+You get 
+off 
+out of 
+.
+But you aren't 
+on 
+in 
+.
+But there's no water here to carry.
+The score was 
+The score is 
+made up as follows:^
+finding sundry items
+visiting various places
+total (out of 
+)
+But you aren't on 
+ at the moment.
+You aren't holding 
+.
+You juggle 
+ for a while, but don't achieve much.
+ don't
+ doesn't
+ seem interested.
+You'll have to get 
+off 
+out of 
+ first.
+You are unable to climb 
+.
+You are unable to descend by 
+.
+You can't, since 
+ 
+ in the way.
+You can't, since 
+ lead nowhere.
+ leads nowhere.
+You need to be holding 
+ before you can put 
+ into something else.
+ can't contain things.
+ 
+ closed.
+You'll need to take 
+ off first.
+You can't put something inside itself.
+(first taking 
+ off)^
+There is no more room in 
+.
+Done.
+You put 
+ into 
+.
+You are carrying nothing.
+You are carrying
+:^
+.^
+You jump on the spot, fruitlessly.
+You would achieve nothing by this.
+Keep your mind on the game.
+You hear nothing unexpected.
+ (providing light)
+ (which 
+ closed)
+ (closed and providing light)
+ (which 
+ empty)
+ (empty and providing light)
+ (which 
+ closed and empty)
+ (closed, empty and providing light)
+ (providing light and being worn
+ (providing light
+ (being worn
+ (which 
+ 
+open
+open but empty
+closed
+closed and locked
+ and empty
+ (which 
+ empty)
+ containing 
+ (on 
+, on top of 
+ (in 
+, inside 
+ is now in its normal ~brief~ printing mode, which gives long descriptions of places never before visited and short descriptions otherwise.
+ is now in its ~verbose~ mode, which always gives long descriptions of locations (even if you've been there before).
+ is now in its ~superbrief~ mode, which always gives short descriptions of locations (even if you haven't been there before).
+They don't 
+That doesn't 
+seem to be something you can lock.
+ locked at the moment.
+First you'll have to close 
+.
+Those don't 
+That doesn't 
+seem to fit the lock.
+You lock 
+.
+ (on 
+)
+ (in 
+)
+ (as 
+)
+^On 
+.
+^On 
+^In 
+ you
+^You
+ can 
+also 
+see 
+.
+ here.
+You see nothing unexpected in that direction.
+But it's dark.
+You find nothing of interest.
+Quite.
+(considering the first sixteen objects only)^
+Nothing to do!
+ You have died 
+ You have won 
+^Would you like to RESTART, RESTORE a saved game
+, give the FULL score for that game
+, see some suggestions for AMUSING things to do
+ or QUIT?
+[Your interpreter does not provide ~undo~.  Sorry!]
+[You cannot ~undo~ any further.]
+Please give one of the answers above.
+^It is now pitch dark in here!
+I beg your pardon?
+[You can't ~undo~ what hasn't been done!]
+[Can't ~undo~ twice in succession. Sorry!]
+[Previous turn undone.]
+Sorry, that can't be corrected.
+Think nothing of it.
+~Oops~ can only correct a single word.
+It is pitch dark, and you can't see a thing.
+yourself
+As good-looking as ever.
+To repeat a command like ~frog, jump~, just say ~again~, not ~frog, again~.
+You can hardly repeat that.
+You can't begin with a comma.
+You seem to want to talk to someone, but I can't see whom.
+You can't talk to 
+.
+To talk to someone, try ~someone, hello~ or some such.
+(first taking 
+)
+I didn't understand that sentence.
+I only understood you as far as wanting to 
+I didn't understand that number.
+You can't see any such thing.
+You seem to have said too little!
+You aren't holding that!
+You can't use multiple objects with that verb.
+You can only use multiple objects once on a line.
+I'm not sure what ~
+~ refers to.
+You excepted something not included anyway!
+You can only do that to something animate.
+That's not a verb I recognise.
+That's not something you need to refer to in the course of this game.
+You can't see ~
+~ (
+) at the moment.
+I didn't understand the way that finished.
+None
+Only 
+ of those 
+is
+are
+ available.
+Nothing to do!
+There are none at all available!
+Who do you mean, 
+Which do you mean, 
+Sorry, you can only have one item here. Which exactly?
+Whom do you want
+ 
+ to 
+?^
+What do you want
+ 
+ to 
+?^
+Your score has just gone 
+up
+down
+ by 
+ point
+s
+(Since something dramatic has happened, your list of commands has been cut short.)
+^Type a number from 1 to 
+, 0 to redisplay or press ENTER.
+^[Please press SPACE.]
+[Comment recorded.]
+[Comment NOT recorded.]
+.^
+?^
+That was a rhetorical question.
+Score notification off.
+Score notification on.
+Objects you have handled:^
+None.
+   (worn)
+   (held)
+   (given away)
+   (in 
+)
+   (in 
+)
+   (inside 
+)
+   (on 
+)
+   (lost)
+ not something you can open.
+They seem 
+It seems 
+to be locked.
+ already open.
+You open 
+, revealing 
+nothing.
+.
+You open 
+.
+ have
+ has
+ better things to do.
+You have visited: 
+.^
+Nothing practical results from your prayer.
+^>
+At the moment, 
+means 
+is unset
+no pronouns are known to the game.
+.
+Those are 
+It is 
+fixed in place.
+You are unable to.
+Nothing obvious happens.
+That would be less than courteous.
+Is that the best you can think of?
+That's not a direction.
+Not that way you can't.
+You need to be holding 
+ before you can put 
+ on top of something else.
+You can't put something on top of itself.
+Putting things on 
+ would achieve nothing.
+You lack the dexterity.
+(first taking 
+ off)^
+There is no more room on 
+.
+Done.
+You put 
+ on 
+.
+Please answer yes or no.
+Are you sure you want to quit? 
+They are
+It is
+ unfortunately closed.
+But they aren't
+But it isn't
+ there now.
+Removed.
+Are you sure you want to restart? 
+Failed.
+Restore failed.
+Ok.
+You achieve nothing by this.
+Save failed.
+Ok.
+In that game you scored 
+You have so far scored 
+ out of a possible 
+, in 
+ turn
+s
+There is no score in this story.
+Transcripting is already off.
+^End of transcript.
+Attempt to end transcript failed.
+Transcripting is already on.
+Start of a transcript of
+Attempt to begin transcript failed.
+But it's dark.
+There is nothing on 
+.
+On 
+.
+You find nothing of interest.
+You can't see inside, since 
+ 
+ closed.
+ 
+ empty.
+In 
+.
+No, you can't set 
+.
+No, you can't set 
+ to anything.
+You aren't holding 
+.
+ 
+ unimpressed.
+Your singing is abominable.
+You aren't feeling especially drowsy.
+You smell nothing unexpected.
+Oh, don't apologise.
+Keep your hands to yourself.
+You achieve nothing by this.
+Real adventurers do not use such language.
+There's not enough water to swim in.
+There's nothing sensible to swing here.
+ not something you can switch.
+ already off.
+You switch 
+ off.
+ not something you can switch.
+ already on.
+You switch 
+ on.
+Taken.
+You are always self-possessed.
+I don't suppose 
+ would care for that.
+You'd have to get 
+off 
+out of 
+ first.
+You already have 
+.
+Those seem 
+That seems 
+to belong to 
+.
+Those seem 
+That seems 
+to be a part of 
+.
+ 
+n't available.
+ 
+n't open.
+They're 
+That's 
+hardly portable.
+They're 
+That's 
+fixed in place.
+You're carrying too many things already.
+(putting 
+ into 
+ to make room)
+You taste nothing unexpected.
+You talk to yourself a while.
+This provokes no reaction.
+What a good idea.
+Futile.
+You lack the nerve when it comes to the crucial moment.
+Keep your hands to yourself!
+You feel nothing unexpected.
+If you think that'll help.
+They don't 
+That doesn't 
+seem to be something you can unlock.
+ unlocked at the moment.
+Those don't 
+That doesn't 
+seem to fit the lock.
+You unlock 
+.
+You'll have to say which compass direction to go in.
+The game file has verified as intact.
+The game file did not verify as intact, and may be corrupt.
+Time passes.
+The dreadful truth is, this is not a dream.
+That seems unnecessary.
+But you aren't holding 
+.
+You look ridiculous waving 
+.
+You wave, feeling foolish.
+You can't wear 
+!
+You're not holding 
+!
+You're already wearing 
+!
+You put on 
+.
+(darkness object)
+(self object)
+(Inform Parser)
+^
+^
+[ 
+~
+~ 
+?
+ / 
+ ]^
+ [Grammar property returned 
+]^
+[Actor is 
+ in 
+]^
+[Parsing for the verb '
+' (
+ lines)]^
+[line 
+]^
+ [Trying look-ahead]^
+ [Advanced to ~noun~ token: 
+re-parse request]^
+but multiple found]^
+error 
+]^
+]^
+ [line 
+ token 
+ word 
+ : 
+]^
+  [token resulted in 
+re-parse request]^
+failure with error type 
+]^
+success]^
+[Line successfully parsed]^
+(
+)^
+  [Read special as the number 
+]^
+  [Read special word at word number 
+]^
+  [Read number as 
+]^
+  [Outside parsing routine returned 
+]^
+  [Scope routine returned multiple-flag of 
+]^
+  [Object list from word 
+]^
+  [Calling NounDomain on location and actor]^
+  [ND returned 
+]^
+  [ND appended to the multiple object list:^
+  Entry 
+: 
+ (
+)^
+  List now has size 
+]^
+  [Merging 
+ new objects to the 
+ old ones]^
+  [Combining 
+ with list]^
+  [Allowing object 
+ for now]^
+  [Read connective '
+']^
+  [Making new list from 
+]^
+   [Retrying singulars after failure 
+]^
+   [NounDomain called at word 
+^
+   
+seeking indefinite object: 
+other 
+my 
+that 
+plural 
+lit 
+unlit 
+owner:
+   number wanted: 
+all
+   most likely GNAs of names: 
+^
+seeking definite object^
+   [ND made 
+ matches]^
+[Gluing in inference with pattern code 
+]^
+[Using pronoun '
+']^
+[Using preposition '
+']^
+   [Adjudicating match list of size 
+ in context 
+^
+   
+indefinite type: 
+other 
+my 
+that 
+plural 
+lit 
+unlit 
+owner:
+   number wanted: 
+all
+   most likely GNAs of names: 
+^
+definite object^
+   Single best-scoring object returned.]^
+   Accepting it^
+   Rejecting it^
+   Made multiple object of size 
+]^
+   Grouped into 
+ possibilities by name:^
+   
+ (
+)  ---  group 
+^
+   Unable to choose best group, so ask player.]^
+   Best choices are all from the same group.^
+   Revising multiple object list of size 
+ with 2nd 
+^
+   Token 2 plural case: number with actor 
+^
+   Done: new size 
+^
+   Scoring match list: indef mode 
+ type 
+, satisfying 
+ requirements:^
+   
+ (
+) in 
+ is rejected (doesn't match descriptors)^
+     
+ (
+) in 
+ : 
+ points^
+   Best guess ran out of choices^
+   Best guess 
+ (
+)^
+[DSA on 
+ with reason = 
+ p1 = 
+ p2 = 
+]^
+[Considering react_before for 
+]^
+[Considering react_after for 
+]^
+[Considering each_turn for 
+]^
+    Match with quality 
+^
+    Match filtered out: token filter 
+^
+    Match added to list^
+    Trying 
+ (
+) at word 
+^
+    Matched (0)^
+    Matched (
+)^
+    ParseNoun returned 
+^
+~
+~ 
+~
+~ 
+: 
+^^    
+***
+ 
+ 
+***
+^^^
+(Inform Library)
+: 
+daemon
+timer with 
+ turns to go
+> 
+^[
+.]^
+ (
+)
+ ('
+')
+<fake action 
+>
+<invalid action 
+>
+<unnamed action 
+>
+<invalid attribute 
+>
+<unnamed attribute 
+>
+[ Action 
+[ Order to 
+: 
+[ Life rule 
+ with noun 
+ and second 
+ 
+ (from < > statement) 
+]^
+<illegal token number 
+>
+noun
+held
+multi
+multiheld
+multiexcept
+multiinside
+creature
+special
+number
+topic
+END
+'
+'
+noun=Routine(
+)
+scope=Routine(
+)
+Routine(
+)
+ * 
+/ 
+ 
+-> 
+ reverse
+Try typing ~showverb~ and then the name of a verb.
+Verb 
+meta 
+'
+' 
+has no grammar lines.
+    
+ ~
+Object ~
+~ (
+)
+ in ~
+~
+  class 
+ 
+  has 
+ 
+  with 
+ 
+'
+'
+NULL
+0
+1
+~
+~
+[...]
+ (
+)
+,^       
+/
+ 
+ 
+<routine 
+>
+<string ~
+~>
+<illegal object number 
+>
+ 
+ 
+(Library Extensions)

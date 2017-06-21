@@ -1,0 +1,266 @@
+! Magic extension of Infocom type (Enchanter, Sorcerer, Spellbreaker)
+! Changes from the Infocom version:
+! * It is not necessary to memorize a spell before using it if
+!   you have your spellbook with you.
+!
+! Implemented by Johan Berntsson, 961014
+! This routine can be used in any game for free, but all 
+! references to me (Johan Berntsson) must be kept.
+!
+! Objects:
+! SpellBook: an object in which to store spells
+! CopySpell: the copy spell
+! IlluminateSpell: the light spell
+!
+! Classes:
+! CSpell: a general spell
+! CSpellWithArgument: a spell with an argument (eg illuminate, copy)
+! CScroll: a general scroll which can contain a spell
+! CComplicatedScroll: a scroll whose spell can't be copied.
+!
+! New grammar:
+! memorize <noun>
+! illuminate <noun>
+! copy <noun>
+!
+! New global data
+! max_no_memorized_spells: constant
+! no_memorized_spells: set this to zero when sleeping or forgetting
+
+System_file;
+Message "Thank you for using magic.h by Johan Berntsson";
+
+Constant max_no_memorized_spells 5;
+Global   no_memorized_spells=0;
+
+[ IsSpell; return (noun ofclass CSpell); ];
+
+Extend "kasta" first
+  * noun=IsSpell -> CastSpell
+  * noun=IsSpell 'på'/'mot' noun -> CastSpellObj;
+[ CastSpellSub; if(noun ofclass CSpell) noun.activate(); else <<Drop noun>>; ];
+[ CastSpellObjSub; if(noun ofclass CSpell) noun.activate(second); else <<ThrowAt noun second>>; ];
+
+Extend "läs" first * noun -> Read;
+Verb "lär" "memorera" * noun -> Memorize;
+[ MemorizeSub; "Du borde skaffa en anteckningbok istället."; ];
+[ ReadSub; <<Examine noun>>; ];
+
+Verb "illuminera" * noun -> Illuminate;
+Verb "kopiera" * noun -> Copy;
+[ IlluminateSub; IlluminateSpell.activate(noun); ];
+[ CopySub; CopySpell.activate(noun); ];
+
+Object SpellBook "besvärjelsebok"
+  with
+    articles "Din" "din" "en",
+    name 'din' 'besvärjelsebok' 'besvärjelseboken' 'bok' 'boken',
+    description [;
+      print "Det är din flitigt använda besvärjelsebok, som du köpte när
+             du började på magikerskolan för många år sedan. Besvärjelserna
+             i den är frukten av många års studier.^";
+    ],
+    before [ a;
+      open, close:
+        "Boken kan läsa tankarna hos sin ägare, och kommer därför
+         alltid visa den information du behöver. Därför finns det
+         inget behov av att öppna, stänga eller bläddra i den.
+         Många liv har räddats av denna magiska egenskap.";
+      Read:
+        print "MAGI FÖR ALLA:^^";
+        for(a=child(self): a~=nothing: a=sibling(a)) {
+          print (The) a, ": (", (string) a.comment, ").^";
+        }
+        rtrue;
+    ],
+  has transparent;
+
+Class CScroll
+  ! Scroll which can contain a spell. This spell can be copied.
+  with
+    description [;
+      if(child(self)==nothing) "Pergamentsrullen är tom.";
+
+      print "Det står ~", (name) child(self), ": ",
+            (string) (child(self)).comment, ".~^";
+      rtrue;
+    ],
+    before [;
+      Memorize:
+        if(child(self) ofclass CSpell) 
+          <<Memorize (child(self))>>;
+      Read:
+        if(child(self)==nothing)
+          "Det står inget på pergamentsrullen.";
+
+        if(child(self) ofclass CSpellWithArgument) {
+          <Examine self>;
+        } else {
+          print "Vill du läsa upp texten på pergamentsrullen och aktivera besvärjelsen? ";
+          if(YesOrNo()) (child(self)).Activate();
+          else <Examine self>;
+        }
+        rtrue;
+    ]
+  has transparent;
+
+Class CComplicatedScroll
+  ! Scroll which can contain a spell. This spell can not be copied.
+  class CScroll with
+    description [;
+      if(child(self)==nothing) "Pergamentsrullen är tom.";
+
+      print "Det står ~", (name) child(self), ": ",
+            (string) (child(self)).comment, ".~
+            Besvärjelsen är lång och komplicerad.^";
+      rtrue;
+    ],
+  ;
+
+Class CSpell
+  ! A general spell (without arguments)
+  with
+    number 0, ! number of memorized spells of this type
+    description [;
+      print "Besvärjelsen lyder ~", (name) self, ": ",
+            (string) self.comment, ".~^";
+      rtrue;
+    ],
+    before [;
+      Memorize:
+        if(parent(self)~=SpellBook) {
+          print "Du kan bara memorera besvärjelser som står i ", (the) SpellBook, ".^";
+          rtrue;
+        }
+        if(GrabObject(SpellBook)) {
+          print "Du måste hålla i ", (the) SpellBook, " först.^";
+          rfalse;
+        }
+
+        if(self.number>no_memorized_spells) self.number=0;
+        if(no_memorized_spells>=max_no_memorized_spells) {
+          print "Du har redan studerat så mycket att du inte lyckas
+                 lära dig några fler besvärjelser. Orden försvinner ur
+                 minnet lika snabbt som du pluggar in dem.^";
+          rtrue;
+        }
+        print "Du koncenterar dig och memorerar ",(the) self;
+        if(self.number==0) print ".^";
+        else print " ännu en gång.^";
+
+        ++no_memorized_spells;
+        ++self.number;
+        rtrue;
+    ],
+    activate [obj;
+      if(self.number>no_memorized_spells) self.number=0;
+
+      if(parent(self) ofclass CScroll) {
+        if(TestScope(parent(self))==false) "Det finns ingen ", (name) self, " här.";
+!        print "När du läst klart besvärjelsen går pergamentsrullen upp i rök!^^";
+!        remove parent(self);
+!        remove self;
+        print "Du läser med hög röst upp de komplicerade orden till ", (the) self, ".^^";
+      } else if(self.number>0) {
+        --self.number;
+      } else {
+        if(GrabObject(SpellBook)) {
+          print "Du måste hålla i ", (the) SpellBook, " först.^";
+          rfalse;
+        }
+        if(parent(self)~=SpellBook) {
+          print "Du kan inte finna ", (the) self,  " i ", (the) SpellBook, ".^";
+          rfalse;
+        }
+
+        print (The) SpellBook, " öppnar sig själv till rätt sida, och du läser
+              med hög röst upp de komplicerade orden till ", (the) self, ".^^";
+      }
+
+      if(parent(player) provides react_before_magic)
+        if((parent(player)).react_before_magic(self, obj)) rtrue;
+
+      return self.domagic(obj);
+    ]
+  ;
+
+Class CSpellWithArgument
+  ! A spell which requires an argument
+  class CSpell with
+    activate [obj;
+      if(obj==0) {
+        print "Du måste tala om vad du vill kasta besvärjelsen på.^";
+        rfalse;
+      }
+      return self.CSpell::activate(obj);
+    ]
+  ;
+
+CSpellWithArgument IlluminateSpell "illumineringsbesvärjelse" SpellBook
+  with
+    name 'illumineringsbesvärjelse' 'illumineringsbesvärjelsen' 'besvärjelse' 'illuminera',
+    short_name_def "illumineringsbesvärjelsen",
+    comment "få något att lysa",
+    domagic [obj;
+      if(obj ofclass CSpell || obj has scenery || obj has static) {
+        print "Det går inte att kasta ", (the) self,
+              " på ", (a) obj, ".^";
+        rfalse;
+      }
+      if(obj provides domagic) if(obj.domagic(self)) rtrue;
+
+      print "Ett bländande ljussken slår plötsligt ut från ", (the) obj,
+            " och ", (DenEllerHan) obj, 
+            " början glöda! Ljuset minskar snart till en mer uthärdligt nivå, och ", 
+            (the) obj, " är nu en fullgod ljuskälla.^";
+      give obj light;
+      rtrue;
+    ]
+  ;
+
+CSpellWithArgument CopySpell "kopieringsbesvärjelse" SpellBook
+  with
+    name 'kopieringsbesvärjelse' 'kopieringsbesvärjelsen' 'besvärjelse' 'kopiera',
+    short_name_def "kopieringsbesvärjelsen",
+    comment "kopiera en besvärjelse till besvärjelseboken",
+    domagic [obj x;
+      if(parent(obj) ofclass CScroll) obj=parent(obj);
+      if(obj ofclass CScroll) {
+        x=child(obj);
+        if(x==nothing) {
+          print "Det finns ingen besvärjelse på ", (the) obj, ".^";
+          rfalse;
+        }
+      } else {
+        x=obj;
+      }
+
+      if(x ofclass CSpell) ; else {
+        print "Du kan inte kopiera ", (a) x,
+              " till ", (the) SpellBook, ".^";
+        rfalse;
+      }
+
+      ! obj is now scroll (if any) or spell, x is always spell.
+      if(obj ofclass CComplicatedScroll) {
+        print (The) SpellBook, " börjar glöda. Uppbringande all kraft
+          den har, så försöker ",
+          (the) self, " kopiera ", (the) x, " till din bok,
+          med besvärjelsen är alltför lång, komplicerad och kraftfull.
+          Glöden dör bort, men som tur är så är ", (the) x, " oskadd.^";
+        rtrue;
+      }
+      print (The) SpellBook, " börjar glöda. Långsamt och majestätiskt
+            så framträder orden till ", (the) x, " på en tom sida, med
+            ett starkare sken än boken själv. Ljuset dör undan, men
+            besvärjelsen är kvar!";
+      move x to SpellBook;
+      if(obj ofclass CScroll) {
+        print " Pergamentsrullen som den var skriven på går upp i
+              rök när kopieringen är färdig.";
+        remove obj;
+      }
+      print "^";
+      rtrue;
+    ]
+  ;

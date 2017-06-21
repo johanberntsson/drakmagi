@@ -1,0 +1,2064 @@
+!% +language_name=Swedish
+!---------------------------------------------------------------------------------------------------
+! (c) 1996-97, 2002-05 Johan Berntsson, johan@microheaven.com
+!
+! ENGLISH:
+! This game source has been release in public domain as an example of game written
+! in Swedish. Use it for reference and as inspiration for your own game design.
+! SWEDISH:
+! Denna källkod är fri att sprida, och menad som ett exempel på ett spel skrivet på svenska.
+! Använd den som referens och inspiration till ditt eget spel.
+!
+! This is the first game I wrote in Inform, and it was never meant to be more than a design
+! experiment. Later it became the test bench for Glulx and swedish.h, and it demonstrates how
+! to add Swedish language support in Inform. The code is rather messy, and there must be some bugs left.
+! Among my more ambitious games are "Vacation gone awry" and "The Temple". Both can be
+! downloaded from the IF archive.
+!
+! HISTORY:
+! 961014: First lines of code written.
+! 961023: The introduction, the dragon problem and the endgame
+!         have been implemented and a first version sent to Staffan Friberg.
+! 961028: The first bugs reported by Staffan have been fixed.
+! 970728: Added two stones and related problems. Rewrote some texts.
+!
+! 020204: rewritten in Swedish
+! 020304: two new puzzles, some improvments.
+! 020305: Ported to Glulx, some graphics added.
+!
+! 030227: updated to new version of swedish.h. More help texts. Released in public domain.
+! 030617: updated to new version of swedish.h.
+! 040315: updated to new version of swedish.h. (v1.2, compiler 6.30, library 6/11). Slight cleanup of code.
+! 040615: a few bugs fixed and missing description added. New dragon picture in Glulx mode.
+! 050812: implemented new help items suggested by Fredrik Ramsberg (thanks!)
+!
+! BUGS: It's not a bug, it's a feature!
+
+Include "SweAlpha";
+
+Release 4;
+Constant Story "Drakmagi";
+Constant Headline "^(c) 2003-2004 Johan Berntsson. Skriv ~hjälp~ eller ~h~ för instruktioner.^";
+Constant MAX_SCORE 50;
+Constant SACK_OBJECT backpack;
+Constant AMUSING_PROVIDED;
+[ Amusing; HelpSub(); ];
+
+Include "Parser";
+
+!
+! Support routines for Glulx graphics
+!
+#ifdef TARGET_GLULX;
+Include "Infglk";
+
+Include ">drakmagi.bli";
+Global imageok;
+Global window_width;
+Global window_height;
+
+[ WindowSize w fh;
+  ! Finds the main window's size in pixels. No method seems to exist, so this is a messy solution.
+  ! Open a graphics window on top of the main window, check its size, and close it.
+  w=glk_window_open(gg_mainwin, (winmethod_Below+winmethod_Proportional), 100, wintype_Graphics, 210);
+  glk_window_get_size(w, gg_arguments, gg_arguments+4);
+  window_width=gg_arguments-->0;
+  window_height=gg_arguments-->1;
+  glk_window_close(w);
+
+  ! We need space for the [More] prompt if the window is small. Calculate the text height
+  glk_window_get_size(gg_mainwin, gg_arguments, gg_arguments+4);
+  fh=window_height/gg_arguments-->1; ! the height of each text line in pixels
+  window_height=window_height-2*fh;
+];
+
+[ DrawPic pic   w h dw dh;
+  if(imageok) {
+    ! Resize if the picture is too big (I miss floats, but this should work reasonably well)
+    glk_image_get_info(pic, gg_arguments, gg_arguments+4);
+    w=gg_arguments-->0;
+    h=gg_arguments-->1;
+    dw=w/10;
+    dh=h/10;
+    while(w>window_width || h>window_height) {
+      ! make smaller until the picture fits into the window
+      w=w-dw;
+      h=h-dh;
+    }
+    glk_image_draw_scaled(gg_mainwin, pic, imagealign_InlineUp, 0, w, h);
+    print "^"; 
+  }
+];
+
+[ HandleGlkEvent ev context;
+  switch (ev-->0) {
+  evtype_Redraw:
+    WindowSize();
+  evtype_Arrange:
+    WindowSize();
+  }
+  context=0; ! suppress compiler warnings
+];
+
+[ CheckGraphics;
+  if (glk_gestalt(gestalt_Graphics, 0)) {
+     WindowSize();
+     imageok=true;
+  } else {
+     imageok=false;
+     print "[Tyvärr kan inte din interpretator hantera grafik, så inga bilder kan visas]^^";
+  }
+];
+#endif;
+
+Include "VerbLib";
+Include "SweRout";
+Include "SwedishG";
+Include ">Magic.inf";
+
+! -------- New grammar -------------------
+Verb 'hjälp' 'h//' * -> Help;
+Verb 'tid' 'datum' * -> Time;
+Verb 'animera' * noun -> MagicAnimate;
+Verb 'frys' * noun -> MagicFreeze;
+Verb 'hela' * noun -> MagicHeal;
+Verb 'återuppväck' 'uppväck' 'återuppstå'
+   * noun                          -> MagicResurrect
+   * noun 'från' 'de' 'döda'       -> MagicResurrect;
+Verb 'odöda'
+   * noun                          -> MagicResurrect;
+Extend 'väck' first
+   * noun 'från' 'de' 'döda'       -> MagicResurrect
+   * 'upp' noun 'från' 'de' 'döda' -> MagicResurrect;
+Extend 'ge' first
+   * noun 'nytt' 'liv'             -> MagicResurrect
+   * noun 'liv'                    -> MagicResurrect
+   * 'liv' 'åt' noun               -> MagicResurrect
+   * 'nytt' 'liv' 'åt' noun        -> MagicResurrect;
+Verb 'teleportera' * -> MagicTeleport;
+Verb 'peka' * 'på' noun -> PointAt;
+[ PointAtSub; "Du pekar. Inget händer."; ];
+
+Extend only 'döda' first * noun -> MagicKill;
+Extend 'rör' last
+   * noun 'med' noun -> Touch
+   * 'vid'/'på' noun 'med' noun -> Touch;
+Extend 'slå' 
+   * 'till'/'på'/'sönder' noun 'med' held -> AttackWith;
+Extend 'bryt' first
+   * noun 'med' held -> AttackWith;
+
+[ MagicAnimateSub; AnimateSpell.activate(noun); ];
+[ MagicFreezeSub; FreezeSpell.activate(noun); ];
+[ MagicHealSub; HealSpell.activate(noun); ];
+[ MagicResurrectSub; ResurrectSpell.activate(noun); ];
+[ MagicTeleportSub; TeleportSpell.activate(); ];
+[ MagicKillSub;
+  if(KillSpell in SpellBook) KillSpell.activate(noun);
+  else <Attack noun>; ];
+[ AttackWithSub;
+  if(second==Amulet) <<ThrowAt second noun>>;
+  else <<Attack noun>>; ];
+[ TimeSub; switch(the_time/60) {
+           22, 23, 0, 1, 2, 3: "Det är natt.";
+           4, 5, 6: "Det är tidig morgon.";
+           7, 8, 9, 10, 11: "Det är förmiddag.";
+           12, 13, 14, 15, 16, 17: "Det är eftermiddag.";
+           18, 19, 20, 21: "Det är kväll.";
+           } ];
+
+! ------------ Init the game -------------------
+
+[ Initialise;
+  player=PlayerObject;
+
+  print "^^Brevet ifrån din gamle handledare kom oväntat. Du kommer fortfarande väl ihåg hur de
+           andra lärarna på magikerskolan anklagade honom för att arbeta med svart magi. En
+           dag var han borta och du har inte hört något ifrån honom sedan dess.^^\
+           Utan hans tålmodiga förklaringar hade du antagligen inte klarat dina studier, och nu
+           behöver han din hjälp. Utan tvekan följde du vägbeskrivningen i brevet, och efter en
+           lång resa står du framför din lärares oansenliga bostad.^^";
+
+#ifdef TARGET_GLULX;
+  CheckGraphics();
+#endif;
+
+  score=0;
+!  SetTime(60*12, 1);    ! Start at 12.00, time step is 1 minute
+  lookmode=2;           ! Always show long descriptions (verbose)
+    
+  location=Glen;
+  move SpellBook to player;
+  move BackPack to player;
+
+  move DirtyScroll to Glen;
+  move FreezeSpell to SpellBook;
+  move HealSpell to SpellBook;
+
+  StartDaemon(Dragon);
+];
+
+Object EpiloqueRoom "Epilog";
+
+[ Epilogue status pkey;
+  print "^Tryck mellanslag.";
+  pkey=KeyCharPrimitive();
+  ClearScreen(2); ! (2) for mainwin only
+  print "^^^";
+
+  location=EpiloqueRoom;
+
+  switch(status) {
+  1:
+    print "En ny era av terror och skräck tar sin början. De Gamla Gudarna regerar ännu en gång
+           jorden, och den förste att slitas i stycken är du.^";
+    deadflag=1;
+  2:
+    print "Jorden är räddad, men minnet av din lärares död smärtar dig.^";
+    deadflag=2;
+  3:
+    print "Jorden är räddad, och din lärares själ är återbördad. Slutet gott, allting gott.^";
+    deadflag=2;
+  };
+];
+
+Object PlayerObject "dig själv"
+  with number 0,
+       before NULL, after NULL, life NULL, each_turn NULL,
+       time_out NULL, describe NULL, capacity 100,
+       parse_name 0, orders 0, ! short_name 0
+  description [;
+    if(self has general) {
+      "Du är en korsning mellan människa och fisk.";
+    }
+    "Lika snygg som vanligt.";
+  ],
+  domagic [spell;
+    switch(spell) {
+    HealSpell:
+      "Du känner dig friskare och starkare än tidigare.";
+    FreezeSpell:
+      "Plötsligt är du täckt av ett tunnt islager. Det är väldigt kallt och obehagligt,
+      men isen smälter snabbt.";
+    IlluminateSpell:
+      give player light;
+      "Ett bländande ljus omger dig och du börjar glöda. Ljuset bleknar långsamt bort, men du
+      är nu en helt adekvat ljuskälla.";
+    AnimateSpell:
+      "Märkligt nog känner du ingen större skillnad. Du är lika mycket vid liv som tidigare.";
+    ResurrectSpell:
+      "Detta är en besvärjelse för att väcka de döda till liv. Eftersom du inte är död (ännu) händer inget.";
+    KillSpell:
+      deadflag=1; "Plötsligt upphör du att finnas till.";
+    }
+  ],
+  has  concealed animate proper transparent; ! general if fishlike
+
+! ------------ Useful parser extensions -----------
+
+[ IsCarried obj;
+  ! Check if player is carrying obj
+  return IsObjInContainer(obj, player);
+];
+
+[ IsHeld obj;
+  ! Check if player is holding obj in his hands
+  if(obj in player) rtrue;
+  rfalse;
+];
+
+[ GrabObject obj;
+  ! Silently ready a object for use (hold it).
+  ! false if ok, true if not possible
+
+  if(IsHeld(obj)) rfalse;
+  keep_silent=1;
+  <Take obj>;
+  keep_silent=0;
+  if(IsHeld(obj)) rfalse;
+  rtrue;
+];
+
+[ RemoveObj obj notstop;
+  ! Remove an object
+  ! if notstop not given or zero, stop timers and daemons
+  if(notstop==0) {
+    StopDaemon(obj);
+    StopTimer(obj);
+  }
+  remove obj;
+];
+
+[ ReplaceObj cur_obj new_obj notstop;
+  ! Remove an cur_obj and insert new_obj
+  ! if notstop not given or zero,
+  !    stop timers and daemons for cur_obj
+
+  if(notstop==0) {
+    StopDaemon(cur_obj);
+    StopTimer(cur_obj);
+  }
+  move new_obj to parent(cur_obj);
+  remove cur_obj;
+];
+
+[ IsObjInContainer obj container;
+  for(:parent(obj)~=container:obj=parent(obj))
+    if(parent(obj)==nothing) rfalse;
+  rtrue;
+];
+
+[ NumberOfNewStones i total;
+  total=0;
+  for(i=0: i<WantedStones-->0: ++i) {
+    if((WantedStones-->(i*2+1)==0) &&
+       TestScope(WantedStones-->(i*2+2), player)) {
+      WantedStones-->(i*2+1)=1;
+      ++total;
+    }
+  }
+  return total;
+];
+
+Object tiny_claws "hasande ljud" thedark
+  ! Creepy effect. Borrowed from the Inform Designer's Manual
+  with
+    name 'hasande' 'ljud' 'ljudet' 'djur' 'djuren' 'insekter' 'insekterna',
+    short_name_def "hasande ljudet",
+    initial "Någonting hasar mot marken i mörket.",
+    before [;
+    Listen: "De hasande ljuden omger dig.";
+    Touch, Taste: "Det vill du egentligen inte göra. Tro mig.";
+    Smell: "Fruktan har en egen doft, och du känner den nu.";
+    Attack: "De undviker lätt dina utfall i mörkret.";
+    default: "Djuren viker undan i mörkret.";
+    ],
+    each_turn [; StartDaemon(self); ],
+    number 0,
+    daemon [;
+      if(location~=thedark) {
+        self.number=0;
+        StopDaemon(self);
+        rtrue;
+      }
+      self.number=self.number+1;
+      switch(self.number) {
+      1:
+       "^Hasandet kommer lite närmare, och ditt hjärta slår snabbare.";
+      2:
+       "^Kallsvetten börjar droppa ifrån din panna. Djuren är nästan här!";
+      3:
+       "^Något nuddar vid din fot och du sparkar till. Någonting kastas ut i mörkret.";
+      4:
+        deadflag=1;
+        "^Något landar på din hand och biter dig. Nästan omedelbart börjar din arm skaka.
+        Smärtan sprider sig, dina knän viker sig, din tunga svullnar upp...";
+      }
+    ],
+  has neuter def_article;
+
+! ------------ The rooms ------------------
+
+Object RemoteHut "Stuga"
+  with
+    description "Stugan är inte speciellt trevlig. Det enda fönstret är helt täckt av sot, och en eldstad är
+                den enda ljuskällan. På elden står kärl fyllda med konstiga vätskor. En stor bänk
+                är fylld av böcker, pergament och ingredienser till trollbrygder. En dörr leder
+                norrut, mot skogen.",
+    n_to Glen, out_to Glen,
+  has light;
+
+Object -> hut_pot "kärl" with name 'kärl' 'kärlen' 'vätskor', short_name_def "kärlen" has scenery concealed neuter;
+
+Object -> hut_fp "eldstad" with name 'eldstad' 'eldstaden', short_name_def "eldstaden" has scenery concealed;
+
+Object -> hut_bench "bänk"
+  with
+    name 'bänk' 'bänken',
+    short_name_def "bänken",
+    description [;
+      if(hut_doc in self && children(self)==1) "Det ligger böcker och pergament på bänken.";
+      print "Det finns";
+      WriteListFrom(child(hut_bench), ENGLISH_BIT+RECURSE_BIT+ISARE_BIT);
+      print " på bänken.";
+    ],
+  has scenery supporter;
+
+Object -> -> hut_doc "böcker"
+  with
+    name 'böcker' 'böckerna' 'pergament',
+   short_name_def "böckerna",
+    description
+      "Alla böcker handlar om magi. De mest intressanta handlar om drakar och deras magi, men de
+      är strikt teoretiska och av lite värde för dig.",
+    before [;
+    Transfer, Take, Remove: if(TestScope(Master)) "~Rör inte böckerna. Jag behöver dem~, säger Istar.";
+    ],
+    after [; Take,Remove: give self ~concealed; ],
+  has concealed pluralname;
+
+Object -> GoldBox "gyllene låda"
+  with
+    name 'gyllene' 'lådan' 'låda' 'förgyllt' 'trä' 'trälåda' 'trälådan' 
+      'magisk' 'magiska',
+    short_name_def "gyllene lådan",
+    initial [;
+      print "En vacker låda av förgyllt trä står i en nisch i väggen";
+      if(children(self)>0) {
+        print ". Den innehåller ";
+        WriteListFrom(child(self), ENGLISH_BIT);
+      }
+      print ".^";
+    ],
+    description [;
+      print "Professionella trollkarlar använder sådana lådor för att förvara magiska föremål.
+            Kraftfulla besvärjelser har lästs över den, och enbart dess ägare kan komma åt dess innehåll.^";
+      if(children(self)>0) {
+        print "^I lådan finns ";
+        WriteListFrom(child(self), ENGLISH_BIT);
+        print ".^";
+      }
+    ],
+    before [;
+    Transfer, Take, Remove, LetGo:
+      if(TestScope(Master))
+        "Omöjligt, lådan är skyddad av kraftfulla besvärjelser mot stöld och åverkan.";
+    Receive:
+      if((noun ofclass CStone)==false)
+        print_ret "Trots att lådan är öppen kan du inte lägga ",
+                  (the) noun, " i ", (the) self, ".";
+    ],
+    after [;
+    Receive:
+      if(children(self)==WantedStones-->0 && TestScope(Master)) {
+        print "Din lärare ser dig lägga den sista stenen i lådan och ropar
+         ~Den sista stenen! Nu kan jag öppna porten~^^\
+        Han tar upp stenarna ifrån lådan och säger, ~Följ med, stora
+        uppgifter väntar.~ Allt blir plötsligt gult när han läser en teleporteringsbesvärjelse,
+        och ni förflyttas till en annan plats.^";
+        StartDaemon(EvilMaster);
+        PlayerTo(GateRoom);
+        rtrue;
+      }
+    ],
+  has container open def_article;
+
+Object -> Master "Istar"
+  with
+    name 'lärare' 'läraren' 'gammal' 'trollkarl' 'trollkarlen' 'istar' 'gamle' 'gamla',
+    domagic [spell;
+      if(spell==KillSpell) rfalse;
+
+      print (The) self, " stoppar besvärjelsen med en handviftning.
+            ~Vad håller du på med för dumheter? Ge dig på någon i din egen storlek istället~^";
+      rtrue;
+    ],
+    initial [;
+      if(Introduction in self) {
+        move Introduction to player;
+        "Istar, din gamle lärare, sitter vid bänken och läser i en gammal bok. När han ser dig
+        säger han, ~Min pojke, jag är så glad att se dig igen. Stora uppgifter väntar oss,
+        men till att börja med vill jag att du läser detta~. Han tar upp ett papper och ger 
+        det till dig. ~Det är en sammanfattning av mitt arbete så här långt.~";
+      }
+      print (string) random(
+            "Din lärare läser ett pergament.",
+            "Din lärare kontrollerar innehållet i en av bägarna.",
+            "Din lärare funderar på något."), "^";
+    ],
+    react_after [;
+    Go:
+      switch(NumberOfNewStones()) {
+      0: rfalse;
+      1: 
+         print "När du kommer in i stugan säger din gamle lärare,
+         ~Jag ser att du funnit en ny sten. Bra gjort. Lägg den i den förgyllda lådan.~^";
+      default:
+         print "När du kommer in i stugan säger din gamle lärare,
+         ~Jag ser att du funnit fler stenar. Mycket bra. Om du håller den här takten
+         är vi snart klara. Lägg stenarna i den förgyllda lådan.~^";
+      }
+      rfalse;
+    ],
+    description [;
+      "Din lärare är nu en gammal man. Hans hår har blivit vitt.";
+    ],
+    life [;
+      Order:
+        "Han ignorerar dig.";
+      Ask:
+        if(second ofclass CStone) second='sten';
+ 
+        switch(second) {
+        'sammanfattning', 'papper', 'rapport', Introduction:
+          "~Det är en lång historia och jag kan hinner inte berätta den igen. Läs vad
+          skrivit istället.~";
+        'sten', 'stenar',  'stenarna', 'stenen':
+          "~Lägg stenarna i lådan~";
+        'magi', 'besvärjelse', 'besvärjelser':
+          "~Du borde veta vad magi är vid det här laget. Men kom ihåg att
+          det finns flera sorters magi. På den senaste tiden har jag försökt
+          att utforska den mäktiga magi som demoner och drakar använder.
+          Det är naturligtvis därför som mina kollegor vände sig emot mig. De
+          är avundsjuka och rädda.~";
+        'vit', 'port':
+           "~Det enda sättet jag känner till som vi kan stoppa de gamla gudarnas
+           återkomst på är att öppna porten till en annan dimension, där vi kan ta
+           hjälp av vit magi. Jag vet hur man hittar porten, men jag behöver stenarna
+           för att öppna den. Jag kan inte lämna stugan, så det är upp till dig att
+           rädda oss alla.~";
+        'svart', 'gamla', 'gudar':
+           "~Jag har studerat svart magi under lång tid, och jag kan säga
+           dig att dess kraft är farlig och mäktig. Den verkar härstamma från
+           varelser som en gång levde på jorden som vanligvis kallas de gamla
+           gudarna. Jag är rädd att de snart kommer tillbaka, och att de kommer
+           att krossa oss som insekter, om vi inte lyckas stoppa dem.~";
+        'trollbrygder', 'vätskor', 'ingredienser':
+           "~Rör ingenting. Jag håller på med ett experiment.~";
+        'demon', 'demoner', 'demonmagi':
+           "~Jag lyckades aldrig göra några framsteg i demonmagi. Deras tankevärld är
+           så gott som omöjligt att förstå för människor.~";
+        'drakar', 'drake', Dragon:
+          "~Ja, drakar är verkligen intressanta. De är giriga och följer sin egen
+          moralkod, men jag skulle inte kalla dem onda. Visst sätter de stort
+          värde på sina ägodelar, och stjäla något ifrån en drake är inte att
+          rekommendera. Mer intressant för oss är att de har god kännedom om
+          magi. De kan besvärjelser som är mer avancerade än någon av våra
+          bästa trollkarlar behärskar. Men de vet värdet av sin kunskap. Ingen drake
+          har någonsin lärt ut sina konster till en människa. De dör hellre.~";
+        'mig', SelfObj:
+           "~Du var alltid min favoritelev, och jag visste att du skulle hjälpa mig.~";
+        'stuga', 'skog':
+           "~Jag kanske bor lite långt ute i ödemarken, men ingen stör mig här.~";
+        'låda', 'förgyllda', 'lådan':
+           "~Jag tog med den ifrån skolan. Mycket praktisk, eller hur? Jag behöver
+           aldrig oroa mig för att någon ska stjäla min mest värefulla saker.~";
+        'silver', 'teleportering', SilverScroll, TeleportSpell:
+          "~Jag har gjort den här besvärjelsen för att underlätta ditt sökande. Den kommer att
+          föra nära stenarna.~";
+        'pergamentsrulle', 'smutsig', DirtyScroll, AnimateSpell:
+          if(TestScope(DirtyScroll)) {
+            if(parent(AnimateSpell)==DirtyScroll) {
+              "~Det är en intressant besvärjelse. Att väcka saker till liv är farligt, men kan vara
+              väldigt användbart ibland.~";
+            } else {
+              print "~Hmm, jag tror att pergamentet innehåller mer än vad man kan se med blotta ögat.
+                    Jag såg något liknande för länge sedan. Låt oss prova ett litet trick.~^^Han tar fram ett fat
+                    och blandar en grön och en gul vätska. Rummet fylls av en stickande rök. Obesvärad av
+                    detta håller Istar pergamentsrullen ovanför fatet. Efter någon minut ger han den till dig, och
+                    du ser att en tidigare osynlig text har framträtt. Det är en besvärjelse!^^\
+                    Istar ler. Han verkar odrägligt nöjd med sig själv.";
+              move AnimateSpell to DirtyScroll;
+              score=score+10;
+              rtrue;
+            }
+          } else {
+            "~Pergamentsrulle, vilken pergamentsrulle?~";
+          }
+        default: "~Tyvärr vet jag inget om det.~";
+        }
+      Answer:
+        "Han verkar inte bry sig om vad du säger.";
+      Show, Give:
+        if(noun ofclass CStone) <<Ask self noun>>;
+        if(noun==SelfObj || noun==DirtyScroll || noun==Introduction)
+          <<Ask self noun>>;
+    ],
+    react_before [;
+      Go, Exit:
+        if(noun~=0 && noun~=n_obj) rfalse;
+        if(BlackStone in self) {
+          move BlackStone to GoldBox;
+          move SilverScroll to player;
+          print "^~Innan du går så borde jag visa dig min sten~ säger Istar.
+                Han visar dig en svart sten och lägger den i ", (the) GoldBox,
+                ". ~Om du hittar fler stenar så vill jag att du lägger dem i lådan. Ta den
+                här också~ säger han och ger dig en silverfärgad pergamentsrulle. ~Stenarna ligger
+                alltför långt bort för att du ska kunna ta dig dit till fots. Kopiera den här
+                teleporteringsbesvärjelsen till din magibok så kan du resa snabbare.~^";
+          rtrue;
+        }
+        if(IsCarried(Introduction) && TestScope(Introduction)) {
+          move Introduction to RemoteHut;
+          print "^~Det är nog säkrast att pappret stannar här~,
+                säger ", (the) Master, " och tar ",
+                (the) Introduction, " ifrån dig.^";
+        }
+    ],
+  has animate proper;
+
+Object Glen "Äng"
+  with
+    description [;
+#ifdef TARGET_GLULX;
+        DrawPic(PicHut);
+#endif;
+        "Detta är en liten äng framför en förfallen stuga.
+        Den är omgiven av en mörk skog, som är i det närmaste
+        oigenomtränglig. En stig leder norrut.";
+    ],
+    in_to RemoteHut, s_to RemoteHut,
+    n_to "Det är långt till närmaste by, och du har ingen tid att förlora.",
+  has light;
+
+CScroll -> DirtyScroll "smutsig pergamentsrulle"
+  with
+    name 'smutsig' 'smutsiga' 'pergamentsrulle' 'pergamentsrullen' 'rullen' 'rulle',
+    short_name_def "smutsiga pergamentsrullen",
+    initial "Nere i gräset ser du något. Det verkar vara en pergamentsrulle.",
+  has def_article;
+
+Object Hut "stuga"
+  with 
+    name 'stuga' 'stugan' 'liten' 'förfallen', 
+    short_name_def "stugan",
+    found_in RemoteHut Glen,
+    before [;
+      Enter: if(location==Glen) <<Go s_obj>>;
+    ],
+  has scenery concealed;
+
+Object f_f "skog" 
+  with 
+    name 'mörk' 'oigenomtränglig' 'skog' 'skogen' 'träd', 
+    short_name_def "skogen",
+    found_in Glen Forest ForestPath Mountain, 
+  has scenery concealed;
+
+Object Forest "Skog"
+  with
+    description "Du står på en stig i en fullvuxen skog. Stigen leder vidare österut mellan träden.",
+    e_to ForestPath,
+  has light;
+
+Object ForestPath "Skogsstig"
+  with
+    description [;
+#ifdef TARGET_GLULX;
+      DrawPic(PicWood);
+#endif;
+      "Du står på en smal stig i en mörk skog. Den leder österut mot ett högt berg, och västerut djupare in i skogen.";
+    ],
+    e_to Mountain, w_to Forest,
+  has light;
+
+Object Mountain "Berget"
+  with
+    description "Skogen tunnar ut mot sidan av ett stort berg, som är alltför brant för att bestigas.
+                I väster kan du se en stig som leder in i skogen. Inte långt härifrån finns en grottöppning
+                som leder in i berget.",
+    w_to ForestPath, n_to Cave, in_to Cave,
+  has light;
+
+Object Cave "Grotta"
+  with
+    description "Grottan består av ett stort, oregelbundet, rum. Trots att ljus kommer in från grottmynningen
+                i den söda väggen så är en stor del av rummet i skugga, och det är svårt att se hur stort det är.
+                Du kan i varje fall se en tunnel som leder vidare norrut.",
+    n_to MountainHall,
+    s_to Mountain, out_to Mountain,
+  has light;
+
+[ UpSlope normalroom;
+  if(MountainSlope has general) {
+    print (string) random(
+      "Marken är frusen och svårt att gå uppför.",
+      "Med viss ansträngning lyckas du gå uppför den frusna backen."), "^";
+  } else {
+    print (string) random(
+      "Backen är brant, och du blir anfådd.",
+      "Med viss ansträning går du uppför den branta backen."), "^";
+  }
+  return normalroom;
+];
+
+[ DownSlope normalroom otherroom;
+  if(MountainSlope has general) {
+    if(otherroom) {
+      print "Marken är frusen, och du halkar nedför backen.^";
+      return otherroom;
+    } else {
+      print "Backen är frusen, och du hasar ned.^";
+    }
+  } else {
+  print (string) random(
+    "Backen är så brant att du halvspringer ned.",
+    "Du går lätt nedför backen.",), "^";
+  }
+  return normalroom;
+];
+
+Object MountainHall "Klipprummet"
+  with
+   description "Detta är ett stort hålrum i berget som ifrån början kan ha skapats av naturen,
+               men som har vidgats av människor. Det verkar en gång ha varit en ståtlig festhall,
+               men är sedan länge övergiven. Någon använder den som förråd, och det står rader
+               av lådor och paket längs väggarna. En stor dörröppning finns i den norra vägen, genom
+               vilken du ser en backe leda ned i mörkret.",
+    n_to [; return DownSlope(MountainSlope, DragonHall); ],
+    d_to [; return DownSlope(MountainSlope, DragonHall); ],
+    s_to Cave,
+  ;
+Object -> mh_box "lådor" with name 'lådor' 'lådorna' 'paket',
+  short_name_def "lådorna", has scenery concealed pluralname;
+Object -> mh_dw "dörröppning" with name 'dörröppning' 'dörröppningen',
+  short_name_def "dörröppningen" has scenery concealed;
+
+Object MountainSlope "Tunnel"
+  with
+   description [;
+     print "Det här är en tunnel som går brant ned från klipprummet ned i 
+           mörkret. ";
+     if(self has general)
+       print "Golvet är täckt med is och frusen lera, vilket gör det svårt att gå^";
+     else
+       print "Vatten rinner nedför backen, och golvet är täckt med lera.^";
+    ],
+    time_left 0,
+    time_out [;
+      if(player in self) print "^Isen smälter.^";
+      give self ~general;
+    ],
+    each_turn [;
+      if(self has general) {
+        if(LeftWarrior in self && RightWarrior in self) {
+          move LeftWarrior to DragonHall;
+          move RightWarrior to DragonHall;
+          if(player in self) {
+            print "^", (The) LeftWarrior, " och ", (the) RightWarrior,
+                  " halkar på isen. De glider nedför backen. ",
+                  (The) RightWarrior, " griper tag i ditt ben för att få stöd, och
+                 får dig även dig att falla och glida ned.^";
+            PlayerTo(DragonHall);
+          }
+        }
+        if(LeftWarrior in self) {
+          move LeftWarrior to DragonHall;
+          if(player in self) {
+            print "^", (The) LeftWarrior, " halkar på isen.
+                  Han griper tag i ditt ben och ni glider båda ned för backen.^";
+            PlayerTo(DragonHall);
+          }
+        }
+        if(RightWarrior in self) {
+          move RightWarrior to DragonHall;
+          if(player in self) {
+            print "^", (The) RightWarrior, " halkar på isen.
+                  Han griper tag i ditt ben och ni glider båda ned för backen.^";
+            PlayerTo(DragonHall);
+          }
+        }        
+      }
+    ],
+    u_to [; return UpSlope(MountainHall);],
+    s_to [; return UpSlope(MountainHall);],
+    d_to [; return DownSlope(DragonHall);],
+    n_to [; return DownSlope(DragonHall);],
+  ;
+
+Object -> ms_water "lera"
+  with
+    name 'vatten' 'lera' 'leran' 'frusen' 'is' 'mark' 'våt' 'marken' 
+      'vattnet' 'backen' 'frusna' 'backe' 'isen' 'våta',
+    articles "Den" "den" 0,
+    short_name_indef [;
+      if(MountainSlope has general) print "frusen lera";
+      else print "våt lera";
+      rtrue;
+    ],
+    short_name_def [;
+      if(MountainSlope has general) print "frusna leran";
+      else print "våta leran";
+      rtrue;
+    ],
+    domagic [spell;
+      if(spell==FreezeSpell) {
+        if(MountainSlope has general) {
+          print "Inget händer. Marken är fortfarande frusen.^";
+          MountainSlope.time_left=10;
+        } else {
+          give MountainSlope general;
+          print "Temperaturen sjunker omedelbart. Vattnet och leran fryser, och du snubblar på isen.
+                Du faller ett par meter innan du får fotfäste igen.^";
+          StartTimer(MountainSlope, 10);
+        }
+        rtrue;
+      }
+      rfalse;
+    ],
+  has scenery concealed def_article;
+
+Object -> LeftStatue "krigarstaty"
+  with
+    name 'krigarstatyn' 'krigarstaty' 'vänstra' 'vänster' 'staty' 'statyn' 'statyerna' 'krigare' 'krigaren',
+    short_name_def "krigarstatyn",
+    description "Det är en staty av en storväxt krigare, som bär ett bredsvärd.",
+    domagic [spell;
+      if(spell==AnimateSpell) {
+        print "Statyn vaknar till liv!^";
+        LeftWarrior.number=10; StartDaemon(LeftWarrior);
+        ReplaceObj(self, LeftWarrior);
+        rtrue;
+      }
+      rfalse;
+    ],
+    initial [;
+      if(TestScope(RightStatue)) {
+        print "Två statyer vaktar passagen.";
+      } else {
+        "En staty står vid vänsterväggen och vaktar passagen.";
+      }
+    ],
+  has static;
+
+Object -> RightStatue "barbarstaty"
+  with
+    name 'barbarstaty' 'barbarstatyn' 'högra' 'höger' 'staty' 'statyn' 'statyerna' 'barbar' 'barbaren',
+    short_name_def "barbarstatyn",
+    description "Det är en staty av en barbar som ser mycket grym ut. Han bär ett svärd i sin högra hand, och
+                en dolk i den vänstra.",
+    domagic [spell;
+      if(spell==AnimateSpell) {
+        print "Statyn vaknar till liv!^";
+        RightWarrior.number=10; StartDaemon(RightWarrior);
+        ReplaceObj(self, RightWarrior);
+        rtrue;
+      }
+      rfalse;
+    ],
+    initial [;
+      if(TestScope(LeftStatue)) {
+        rtrue;
+      } else {
+        "En staty står vid högerväggen och vaktar passagen.";
+      }
+    ],
+  has static;
+
+[ CommentWarriorAttackingMe warrior;
+  print "^", (The) warrior, " attackerar dig", (string) random(
+      " och enbart dina snabba reflexer räddar dig från en tidig död.",
+      ". Svärdet sveper mot dig, men i sista ögonblicket lyckas du hoppa åt sidan.",
+      " och siktar mot ditt bröst. Du lyckas åla dig förbi honom."
+    ), "^";
+];
+
+[ CommentWarriorAttackingWarrior;
+  print "^", (The) LeftWarrior, " och ", (the) RightWarrior,
+        " slåss med varandra", (string) random(
+      ". Svärden slår mot varandra, men de är båda fortfarande oskadda.",
+      ", och deras styrka och skicklighet verkar likvärdiga."
+    ), "^";
+];
+
+Object LeftWarrior "krigare"
+  with
+    number -1,
+    name 'vänstra' 'vänster' 'staty' 'statyn' 'krigare' 'statyerna' 'krigaren',
+    short_name_def "krigaren",
+    description [;
+      "Statyn är nu levande. En storväxt krigare står nu framför dig och svänger sitt bredsvärd.
+      Han verkar leta efter ett lämpligt offer.";
+    ],
+    daemon [;
+      ! ------ Check time out ------
+      if(self.number>0) --self.number;
+      if(self.number==0) {
+        if(TestScope(self))
+          print (The) self, " förvandlas till en staty igen.^";
+        ReplaceObj(self, LeftStatue);
+        return;
+      }
+      ! ------ Fighting -------
+      if(parent(self)==parent(RightWarrior)) {
+        if(TestScope(self)) {
+          CommentWarriorAttackingWarrior();
+        }
+      } else {
+        if(TestScope(self)) {
+          CommentWarriorAttackingMe(self);
+        } else {
+          move self to Location;
+          print "^", (The) self, " rusar mot dig med svärdet höjt.^";
+        }
+      }
+    ],
+  has animate;
+
+Object RightWarrior "barbar"
+  with
+    name 'högra' 'höger' 'statyn' 'staty' 'barbar' 'statyerna' 'barbaren',
+    short_name_def "barbaren",
+    number -1,
+    description [;
+      "Statyn är nu levande. En grym barbar står nu framför dig och svänger sitt svärd.
+      Han verkar leta efter ett lämpligt offer.";
+    ],
+    daemon [;
+      ! ------ Check time out ------
+      if(self.number>0) --self.number;
+      if(self.number==0) {
+        if(TestScope(self))
+          print (The) self, " förvandlas till en staty igen.^";
+        ReplaceObj(self, RightStatue);
+        return;
+      }
+      ! ------ Fighting -------
+      if(parent(self)~=parent(LeftWarrior)) {
+        if(TestScope(self)) {
+          CommentWarriorAttackingMe(self);
+        } else {
+          move self to Location;
+          print "^", (The) self, " rusar mot dig med svärdet höjt.^";
+        }
+      }
+    ],
+  has animate;
+
+Object DragonHall "Drakhallen"
+  with
+   description [;
+#ifdef TARGET_GLULX;
+      DrawPic(PicDragon);
+#endif;
+      "En stor hall har huggits ut ur berget, men det måste vara länge
+      sedan några människor vågade sig hit, för hallen är en drakes bostad.
+      Det stinker svavel överallt, och den enda utgången är uppför backen.";
+    ],
+    u_to [; return UpSlope(MountainSlope);],
+    s_to [; return UpSlope(MountainSlope);],
+  has light;
+
+Object -> Treasure "skatt"
+  with
+    name 'hög' 'högen' 'med' 'värdesaker' 'skatten' 'skatt' 'mynt' 'mynten' 
+      'ädelstenar' 'guld' 'guldet',
+    short_name_def "skatten",
+    initial "Bakom draken ligger en stor hög med värdesaker.",
+    description "Det är i sanning en skatt. Mynt, ädelstenar och guld reflekteras i det bleka ljuset.",
+    before [;
+      Take, Remove, Transfer:
+        if(TestScope(Dragon)) "Du vågar inte ens snegla mot skatten så länge draken bevakar den.";
+        "Drakguld för inget gott med sig.";
+      Examine: rfalse;
+      default:
+        if(TestScope(Dragon)) "Du vågar inte ens snegla mot skatten så länge draken bevakar den.";
+        rfalse;
+    ],
+  has static;
+
+Object -> Dragon "drake"
+  with
+    name 'drake' 'draken' 'lindorm' 'orm' 'skadad' 'chockad',
+    short_name_def "draken",
+    number -1,                         ! time out for wounded state
+    initial [;
+      if(self.number>0) "Det är en skadad drake här.";
+      "Det finns en stor drake här, som ser nyfiket på dig.";
+    ],
+    domagic [spell;
+      if(self.number<=0) 
+        print_ret (The) self, " stoppar dig med en kort besvärjelse, men ser road ut.";
+
+      if(spell==HealSpell && self hasnt general) {
+        give self general;
+        print "Blodet slutar rinna och såret i halsen sluter sig igen. Draken är
+              fortfarande chockad, men du har räddat hennes liv.^";
+        self.number=6;
+        score=score+10;
+        rtrue;
+      } else {
+        print_ret (The) self, " stoppar dig med en kort besvärjelse.";
+      }
+    ],
+    description [;
+      if(self.number>0) {
+        if(self has general)
+          "Drakens sår är läkta, men hon är fortfarande chockad.";
+        else 
+          "Drakens blod forsar ut genom såret i halsen, och du ser hur hon blir svagare och svagare.";
+      }
+      "Draken är enorm. Till och med en fullt utrustad riddare skulle tänka sig för innan han attackerade. 
+      Hon verkar inte alltför upprörd av din närvaro, utan ser nyfiket på dig.";
+    ],
+    before [;
+    Attack: if(self.number>0)
+            "Även om draken är skadad är hon stark nog att bita av dig huvudet innan du hunnit blinka.";
+          "Det är en drake vi talar om. Det kanske går med magi, men med våld... glöm det!";
+    ],
+    life [;
+      Ask, Answer, Order:
+        if(self.number>0)
+          if(self hasnt general)
+            "~Hjälp mig! Ha förbarmande, jag dör. Jag känner hur mitt liv rinner bort,~
+            viskar draken.";
+          else
+            if(second=='magi' && (KillSpell in SpellBook)==false) {
+              print "Draken ser förvånad ut. Sedan säger hon ~\
+                    Magi? Ja, jag förstår. Det var din besvärjelse som räddade mig.~ Hon
+                    höjer huvudet och ser dig i ögonen.
+                    ~Trollkarl, du räddade mitt liv. Jag ska ge dig den
+                    dyraste kunskap jag äger.~ Din besvärjelsebok svävar
+                    plötsligt framför dig och öppnar sig själv. En ny besvärjelse
+                    skrivs in på ett tomt blad.^";
+              move KillSpell to SpellBook;
+              score=score+10;
+              rtrue;
+            } else {
+              "Draken muttrar något i stil med ~En människa som räddar mitt liv...
+              hjälper en drake... aldrig hört talas om...~. Den verkar fortfarande chockad.";
+            }
+        else
+          "Draken ser på dig men säger inget.";
+      default: rfalse;
+    ],
+    daemon [l r p;
+      ! --------- Dragon wounded timer --------------
+      if(self.number>0) {
+        --self.number;
+        if(self.number==0) {
+          if(self has general) {
+            if(TestScope(self)) {
+              print (The) self, " tar sig samman och ser lika stark
+                    och lugn ut som innan attacken.^";
+              give self ~general;
+              self.number=-1;
+            }
+          } else {
+            if(TestScope(self))
+              print "^", (The) self, " lyfter huvudet och ser rasande ut. Hon
+                    försöker bränna dig, men siktar illa och missar. Utmattad
+                    faller hon ned igen och dör.^";
+            ReplaceObj(self, DeadDragon);
+            rtrue;
+          }
+        } else if(TestScope(self)) {
+          if(self has general)
+            print "^", (string) random(
+              "Draken ser fortfarande chockad ut.",
+              "Draken verkar repa sig.",
+              "Draken ser mer samlad ut."), "^";
+          else
+            print "^", (string) random(
+              "Drakens andedräkt blir alltmer oregelbunden.",
+              "Draken ser svagare ut.",
+              "Draken är nästan död."), "^";
+        }  
+      }
+
+      ! ------- Kill the statues ------------
+      l=LeftWarrior in parent(self); r=RightWarrior in parent(self);
+      p=player in parent(self);
+
+      if(l) RemoveObj(LeftWarrior);
+      if(r) RemoveObj(RightWarrior);
+      if(l==true && r==true) self.number=5; ! The dragon is wounded
+
+      if(l==true && r==true && p==true) {
+        print "^", (The) LeftWarrior, " and ", (the) RightWarrior,
+              " ser draken och rusar fram med dragna vapen. Draken
+              bränner snabbt upp ", (the) LeftWarrior, " men hinner inte
+              döda ", (the) RightWarrior, " förrän han lyckats hugga sitt
+              svärd djupt in i hennes hals. Utom sig av ilska och smärta
+              kremerar draken kropparna.^";
+      } else if((l==true || r==true) && p==true) {
+          if(l) print "^", (The) LeftWarrior;
+          else print "^", (The) RightWarrior;
+          print " ser draken och rusar emot henne med vapnen i högsta hugg. Draken
+                bränner kvickt ihjäl honom och kremerar kroppen.";
+      }
+      if((l==true || r==true) && p==false) 
+        print "^Du hör skrik och vapenskrammel i närheten. Sedan kommer en varm
+              vindpust och skriken tystnar plötsligt.^";
+
+    ],
+  has animate female;
+
+Object DeadDragon "drake" 
+  with
+    name 'drake' 'draken' 'drakens' 'lindorm' 'orm' 'kropp' 'död' 'döda',
+    short_name_def "draken",
+    initial "På golvet ligger drakens döda kropp.",
+    description "Drakens enorma kropp ligger tyst och kall på hallens golv.",
+    domagic [spell;
+      switch(spell) {
+      ResurrectSpell:
+        ReplaceObj(self, Dragon);
+        give Dragon general;
+        Dragon.number=6;
+        StartDaemon(Dragon);
+
+        "Drakens kropp darrar till. Det gapande såret i hennes hals drar sig samman, och hon börjar
+        andas igen. Hon sätter sig plötsligt upp men faller tungt tillbaka. Hon verkar fortfarande vara
+       chockad.";
+      HealSpell:
+        "Hon är död. Den helande besvärjelsen är verkningslös.";
+      default: rfalse;
+      };
+    ],
+  has static female;
+
+Object TeleportRoom "På stäppen"
+  with
+    description [;
+#ifdef TARGET_GLULX;
+       DrawPic(PicTeleport);
+#endif;
+       "Du står på en grässtäpp som sträcker sig mot horisonten. Av någon obegriplig anledning är du
+      omgiven av fyra dörröppningar, en i varje väderstreck.";
+    ],
+    n_to [;
+       print "Ett gult moln omger dig, och när det lättar befinner du dig i...^";
+       PlayerTo(Forest);
+       rtrue;
+    ],
+    s_to [;
+       print "Ett gult moln omger dig, och när det lättar befinner du dig på...^";
+       PlayerTo(Glen);
+       rtrue;
+    ],
+    e_to [;
+       print "Ett gult moln omger dig, och när det lättar befinner du dig på...^";
+       PlayerTo(VillageRoad);
+       rtrue;
+    ],
+    w_to [;
+       print "Ett gult moln omger dig, och när det lättar befinner du dig...^";
+       PlayerTo(ChurchYard);
+       rtrue;
+    ],
+  has light;
+
+Object -> TeleportDoor "dörrar"
+  with
+    name 'dörr' 'dörrar' 'dörrarna' 'dörröppning' 'dörröppningarna',
+    short_name_def "dörrarna",
+    description "Dörrarna är identiska.",
+  has scenery pluralname;
+
+Object ChurchYard "Framför en kyrka"
+  with
+    name 'stig' 'havet' 'skogen' 'luften',
+    description [;
+#ifdef TARGET_GLULX;
+       DrawPic(PicChurch);
+#endif;
+        "Du står på en smal stig, som leder ned mot havet i söder, och in i skogen i norr. Luften är
+        salt och frisk. Öster om dig står ett stort och mäktigt tempel.";
+     ],
+    n_to "Vägen slingrar sig vidare in i skogen, dit du inte har något ärende.",
+    s_to Beach,
+    e_to Church,
+  has light;
+
+Object -> DummyChurch "tempel"
+  with
+      name 'kyrka' 'kyrkan' 'tempel' 'templet',
+      short_name_def "templet",
+     description "Templet ser ganska förfallen ut, men är fortfarande en imponerande byggnad.",
+  has scenery neuter;
+
+Object Church "Templet"
+  with
+     name 'valven' 'kyrkan' 'blyinfattade' 'fönstren' 'inredning' 'inredningen' 'fönstret',
+    description "Valven reser sig högt över ditt huvud, men templet står tyst och övergivet.
+                        De blyinfattade fönstren är krossade, och nästan all inredning är borta.",
+    w_to ChurchYard,
+    out_to ChurchYard,
+    before [;
+    Pray:
+       if(self has general && player hasnt general) "Du har redan blivit bönhörd.";
+       give self general;
+       if(player has general) {
+         give player ~general;
+         "Du ber ännu en bön och ännu en gång får du svar. Med en smärtsam
+         förvandling försvinner dina fiskdrag. Din rock är lite trasigare, men i övrigt
+         är du normal igen.";
+       }
+       give player general;
+       "Du ber en snabb bön om framgång i ditt uppdrag som så många gånger förut, men
+       denna gång får du ett ovanligt snabbt svar. Till din förfäran börjar fjäll tränga fram genom
+       din hud, och din blick blir grumligare. Simhud bildas mellan dina fingrar. Sedan smärtar
+       din rygg, och du känner något vasst komma ut och riva hål i din rock. ^^\
+       Hela förvandlingen går på några minuter, och till slut är du i det närmaste en kopia av
+       statyn framför dig.";
+    ],
+  has light;
+
+Object -> Statue "staty"
+  with
+     name 'staty' 'statyn' 'fisk',
+     short_name_def "statyn",
+     initial "En staty står kvar i mitten av templet.",
+     description "Statyn liknar inget annat du har sett tidigare. Den är vagt människoliknande, men fjällen och
+                 de fenliknande utväxterna på ryggen ger ett exotiskt utseende. Vid statyns fot finns rester
+                 av växter (antagligen blommor) och mat, och det verkar troligt att någon tillbett den för länge sedan.",
+  has static;
+
+Object Beach "Stranden"
+  with
+    name 'våg' 'vågor' 'vågorna' 'stranden' 'stig' 'stigen',
+    description [;
+#ifdef TARGET_GLULX;
+       DrawPic(PicWave);
+#endif;
+        "Här slutar land, och stora vågor slår mot stranden. En stig leder norrut mot ett tempel.";
+     ],
+    before [;
+    Swim: 
+       if(player hasnt general) "Du är ingen god simmare, och vågorna är för höga idag.";
+       print "Du kastar dig i havet, och med dina fenor simmar du lätt ned mot botten...^";
+       PlayerTo(OceanFloor);
+       rtrue;
+    ],
+    n_to ChurchYard,
+    s_to "Om du vill simma så kan du säga det rakt ut.",
+  has light;
+
+Object OceanFloor "Havsbotten"
+  with
+    description "Du befinner dig på havets botten. Du kan simma upp mot stranden igen.",
+    u_to Beach,
+    n_to Beach,
+    d_to "Där finns bara botten.",
+    cant_go "Det är mörkt och kyligt. Bäst att simma upp mot ytan så snart som möjligt.", 
+    before [;
+    Swim:
+       <<Go u_obj>>;
+    ],
+  has light;
+
+Object VillageRoad "Landsvägen"
+  with
+    name 'majs' 'majsfälten' 'träd' 'trädet' 'väg' 'vägen',
+    description [;
+#ifdef TARGET_GLULX;
+       DrawPic(PicVillage);
+#endif;
+      "Du står på en väg som slingar sig mellan majsfälten. Österut, bortom majsfälten, ligger en liten by.";
+    ],
+    e_to Village,
+    w_to "Vägen slingrar sig vidare uti ödemarken, dit du inte har något ärende.",
+  has light;
+
+Object -> Beggar "tiggare"
+  with
+    name 'tiggare' 'tiggaren',
+    short_name_def "tiggaren",
+    initial "En tiggare står i skuggan av ett träd och håller fram sin hand.",
+    description "En sorglig skepnad, berövad ägodelar och hela kläder.",
+    life [;
+    Give:
+       if(noun==SilverCoin) {
+         remove noun;
+         move Amulet to player;
+         remove self;
+         "Tiggaren blir överväldigad av din generositet. Det verkar vara länge sedan han
+         såg ett silvermynt. Från sin smutsiga särk drar han upp en amulett, som han insisterar
+         att du tar i gengåva.^^Nöjd med dagens arbete går tiggaren iväg västerut.";
+       }
+       "Tiggaren verkar föredra kontanter.";
+    ]
+  has animate male;
+
+Object Village "Byn"
+  with
+    name 'hus' 'husen' 'landsvägen',
+    description "Den lilla byn består av ett tiotal hus på var sida av landsvägen.
+                Trots dess oansenliga yttre är byn full av liv och rörelse. Det är marknadsdag.",
+    w_to VillageRoad,
+    e_to EndOfVillage,
+  has light;
+
+Object -> Busker "nasare"
+  with
+    name 'nasare' 'man' 'nasaren' 'mannen',
+    short_name_def "nasaren",
+    number 0,
+    initial [;
+      if(self has general) "Nasaren står vid vägkanten med sina koppar.";
+      give self general;
+      "En man står bakom en bänk vid vägen. På bänken ligger tre uppochnedvända koppar.
+      Mannen pekar på kopparna och ropar ~Testa din skicklighet och vinn tio silvermynt!~";
+    ],
+    description "De finns på alla marknader, nasarna som försöker lura av folk deras sista slantar.",
+    react_before [;
+    Go:
+      if((self.number<6 && self.number>1)) {
+        print "^~Men vi höll ju på att spela~, säger nasaren uppgivet när du går iväg.^";
+        self.number=1;
+      } else if(self.number<11 && self.number>7) {
+        print "^~Men vi höll ju på att spela~, säger nasaren uppgivet och ger tillbaka silvermyntet.^";
+        self.number=6;
+        move SilverCoin to player;
+      }
+    ],
+    each_turn [;
+       switch(self.number) {
+       0: self.number=1;
+           "^~Min gode trollkarl, vad sägs om att pröva lyckan? Satsa ett ynka silvermynt och vinn tio!~";
+       1: self.number=2;
+           "^~För att visa min goda vilja låter jag dig spela en gång gratis. Se nu noga på~, säger nasaren
+           och tar fram en liten sten som han lägger under en av kopparna på bänken. Han börjar sedan
+           flytta kopparna hit och dit.";
+        2: self.number=3;
+           "^Mannen ökar takten, men du hänger fortfarande med.";
+        3:self.number=4;
+           "^Mannen flyttar kopparna så snabbt att du nästan tappar bort dig, men du tror att du fortfarande vet
+           vilken kopp som stenen ligger under.";
+        4:self.number=5;
+           "^~Nå, var ligger stenen?~, frågar mannen när han slutat flytta koppar. Du är osäker, men tror att
+           det är den vänstra koppen.";
+        5: "^~Peka på koppen som du tror att stenen ligger under~ säger mannen.";
+        6: print "^~Ska du inte försöka igen? Bara ett silvermynt.~, säger nasaren";
+           if(SilverCoin in Busker && SilverCoin hasnt general) {
+             give SilverCoin general;
+             move SilverCoin to player;
+             print ".^^Besviken och utan något större hopp om framgång rotar du igenom dina fickor, och döm
+             om din förvåning när du känner något hårt i rockfodret. Du sprättar upp sömmen och hittar ännu
+             ett silvermynt. En sådan tur har du inte två gånger, så använd myntet väl";
+           }
+           ".";
+        7: self.number=8;
+           "^Mannen börjar flytta kopparna hit och dit.";
+        8: self.number=9;
+           "^Mannen ökar takten, men du hänger fortfarande med.";
+        9:self.number=10;
+           "^Mannen flyttar kopparna så snabbt att du nästan tappar bort dig, men du tror att du fortfarande vet
+           vilken kopp som stenen ligger under.";
+        10:self.number=11;
+           "^~Nå, var ligger stenen?~, frågar mannen när han slutat flytta koppar. Du är osäker, men tror att
+           det är den högra koppen.";
+         11: "^~Peka på koppen som du tror att stenen ligger under~ säger mannen.";
+        };
+    ],
+    life [;
+    Give:
+       if(self.number~=6) "~Vänta tills vi spelat klart denna omgång~, säger nasaren.";
+       if(noun==SilverCoin) {
+          self.number=7;
+           move SilverCoin to Busker;
+          "Nasaren stoppar på sig silvermyntet.  Han lägger stenen under en av kopparna och säger
+           ~Då börjar vi igen. Om du koncentrerar dig blir de tjugo silvermynten dina~.";
+       }
+    ],
+  has animate male;
+
+Object -> Bench "bänk"
+  with
+     name 'bänk' 'bänken',
+     short_name_def "bänken",
+     before [;
+     Receive: "Nasaren behöver bänken för sitt spel.";
+     ],
+    domagic [spell;
+      if(spell==AnimateSpell) {
+         if(busker.number==7 or 8 or 9 or 10 or 11) {
+           move SilverCoin to player;
+           move RedStone to player;
+           remove Busker;
+           remove self;
+           "Bänken får liv, rör sig våldsamt ett tag och stelnar sedan till igen. Kopparna faller ned på
+           marken men av stenen syns inte ett spår. Nasaren böjer sig snabbt ned för att ta upp
+           kopparna, och från hans rockärm faller stenen ned. Mannen rodnar och säger, ~Snälla
+           herrn, bli inte arg. Jag har sju barn hemma som jag måste skaffa bröd till, och jag fuskar
+           inte när jag spelar mot fattiga. Du kan få insatsen tillbaka, och den här vackra ädelstenen,
+           om du lovar att inte tala om saken för vaktpatrullen~. Han trycker silvermyntet och stenen i din hand,
+           och plockar sedan upp sina saker och springer iväg innan du hinner reagera.";
+         } else {
+           if(Busker.number<6) {
+             Busker.number=1;
+           } else if(Busker.number==6) {
+             Busker.number=6;
+           } else {
+             Busker.number=7;
+           }
+           "Bänken får liv, rör sig våldsamt ett tag och stelnar sedan till igen. Kopparna faller ned på
+           marken. Nasaren böjer sig ned och tar upp kopparna igen. ~Gör inte om det där~, säger han.";
+         }
+      }
+    ],
+  has concealed static supporter;
+
+Class BuskerCup
+  with
+    name 'kopp' 'koppen',
+    before [x;
+    Take, Remove, Transfer, PointAt:
+       if(Busker.number==4 or 5) {
+         Busker.number=6;
+         if(self==Cup1) {
+           print "Nasaren lyfter på koppen, och mycket riktigt ligger stenen där. ~Nybörjartur~, muttrar han,
+            ~Eftersom det var gratis så får du ingen vinst, men om du vinner nästa gång så får du tjugo
+            silvermynt~. Han plockar upp stenen och ställer tillbaka kopparna i en prydlig rad.";
+         } else {
+           print "Nasaren lyfter på koppen, men det ligger ingen sten under den. ~Otur, men det går säkert
+           bättre nästa gång~, säger han uppmuntrande. Han lyfter på den vänstra koppen och plockar
+           fram stenen, och ställer sedan tillbaka kopparna i en prydlig rad.";
+         }
+         "^^Du känner igen stenen! Förutom sin röda färg är den identisk med din lärares svarta sten.";
+       }
+       if(Busker.number==10 or 11) {
+         Busker.number=6;
+         for(x=self: x==self: x=random(Cup1, Cup2, Cup3));
+         print_ret "Nasaren lyfter på koppen, men det ligger ingen sten under den. ~Otur, men det går säker
+         bättre nästan gång~, säger han uppmuntrande. Han lyfter på ", (the) x, " och plockar
+         fram stenen, och ställer sedan tillbaka kopparna i en prydlig rad.";
+       }
+       "Rör inte kopparna förrän jag säger till, säger nasaren.";
+    ],
+    domagic [spell;
+      if(spell==AnimateSpell) {
+         if(busker.number==7 or 8 or 9 or 10 or 11) {
+           move SilverCoin to player;
+           move RedStone to player;
+           remove Busker;
+           remove Bench;
+           "Koppen får liv, rör sig våldsamt ett tag och stöter ned de andra kopparna på marken, innan
+           även den stelnar till och faller ned. Av stenen syns inte ett spår. Nasaren böjer sig snabbt ned för
+           att ta upp kopparna, och från hans rockärm faller stenen ned. Mannen rodnar och säger, ~Snälla
+           herrn, bli inte arg. Jag har sju barn hemma som jag måste skaffa bröd till, och jag fuskar
+           inte när jag spelar mot fattiga. Du kan få insatsen tillbaka, och den här vackra ädelstenen,
+           om du lovar att inte tala om saken för vaktpatrullen~. Han trycker silvermyntet och stenen i din hand,
+           och plockar sedan upp sina saker och springer iväg innan du hinner reagera.";
+         } else {
+           Busker.number=1;
+           "Koppen får liv, rör sig våldsamt ett tag och stöter ned de andra kopparna på marken, innan
+           även den stelnar till och faller ned. Nasaren böjer sig ned och tar upp kopparna igen.
+            ~Gör inte om det där~, säger han.";
+         }
+      }
+    ],
+  ;
+
+BuskerCup -> -> Cup1 "kopp till vänster"
+  with
+     name 'till' 'vänster' 'vänstra',
+     short_name_def "vänstra koppen",
+  has def_article;
+
+BuskerCup -> -> Cup2 "kopp i mitten"
+  with
+     name 'i//' 'mitten' 'mittersta',
+     short_name_def "mittersta koppen",
+  has def_article;
+
+BuskerCup -> -> Cup3 "kopp till höger"
+  with
+     name 'till' 'höger' 'högra',
+     short_name_def "högra koppen",
+  has def_article;
+
+Object EndOfVillage "Byns utkant"
+  with
+    name 'husen' 'majsfält' 'majsfälten' 'fälten' 'vägen',
+    description "Bara några steg öster om byns mittpunkt börjar husen ge plats åt majsfält igen.",
+    w_to Village,
+    e_to "Vägen slingrar sig vidare uti ödemarken, dit du inte har något ärende.",
+  has light;
+
+Object -> SilverCoin "silvermynt"
+  with
+     name 'mynt' 'myntet' 'silvermyntet' 'silvermynt',
+     short_name_def "silvermyntet",
+     initial "Det verkar vara din turdag. Ett silvermynt ligger i dammet vid dina fötter.",
+     description "Silvermyntet är av låg valör, men det räcker till att köpa några öl i bykrogen.",
+  has neuter;
+
+Object GateRoom "Kryptan"
+  with
+    number 0,
+    description "Detta rum påminner om ett hedniskt tempel. Det finns inga utgångar.",
+  each_turn [;
+    if(EvilMaster in self) rtrue;
+
+    ++self.number;
+    switch(self.number) {
+    1:
+      move DeadMaster to self; 
+      "^Där den onda demonen var står plötsligt din lärare. Han faller död ned på golvet.^^\
+      Rummet förändras. Alla synintryck förvrids och märkliga visioner kommer och går.
+      Det verkar som om platsen försvinner inför dina ögon.";
+    4:
+      print "^Den sista förvridna visionen ger vika för en annan scen. Du står nu på en vacker
+        äng i en vacker lövskog. Solen värmer, och det är en perfekt dag för att gå och fiska.^";
+
+      if(TestScope(ResurrectedMaster)) Epilogue(3); else Epilogue(2);
+    default:
+      print_ret "^Rummet håller på att förändras och försvinna.";
+    };
+  ],
+  has light;
+
+Object -> EvilMaster "demon"
+  with
+    name 'lärare' 'läraren' 'ond' 'istar' 'demon' 'demonen',
+   short_name_def "demonen",
+    number 0, ! Turns of endgame
+    initial [;
+      "Din lärare står framför dig.";
+    ],
+    description [;
+      if(self.number>0) {
+        "Demonen är vagt människoliknande men dess ögon är kalla och outgrundliga som en reptils.
+        Huden är täckt av brunt, trassligt hårstubb som sprider en avskyvärt doft av svavel.";
+      }
+      "Din lärare verkar förvirrad.";
+    ],
+    domagic [spell;
+      if(spell==KillSpell) { score=score+10; rfalse; }
+
+      print_ret (The) self, " stoppar dig med en kort besvärjelse,
+            men är alltför upptagen med att öppna porten för att döda dig.";
+    ],
+    daemon [;
+      ++self.number;
+      switch(self.number) {
+      1:
+        self.Initial=0;
+        print "^Din lärares vänliga ansikte börjar ändra form, och till din förfäran
+        förvandlas han till en fasansfull demon. Demonen talar...^^\
+        ~Nu har jag dig! Din lärare var också lättlurad. Han var alltför nyfiken för
+       sitt eget bästa. Han experimenterade med svart magi, och han råkade på mig.
+       Jag tog lätt över hans själ. Hans kollegor på magiskolan var smartare än du. De
+       förstod att något var fel och jag var tvungen att fly ut i ödemarken för att undvika
+       dem. Eftersom de sökte efter mig kunde jag inte leta efter stenarna själv, och jag
+       behöver dem för att öppna porten. Inte porten till den vita magin, utan porten till
+       de gamla gudarna, vars tjänare jag är.^^\
+       Jag sökte i din lärares minnen, och fann dig. Jag förstod att du skulle hjälpa honom,
+       och nu har du gett mig nyckeln till din egen undergång. Visst var det en bra plan?~^^";
+
+        move player to RedField;
+        print "~Nu till arbetet. Först en liten försiktighetsåtgärd~, säger demonen och du är
+              fångad i ett rött kraftfält.^";
+      2: print "^Demonen läser en besvärjelse med hög röst";
+         if(Amulet in player && RedField in location) {
+           print ".^^Amuletten börjar vibrera";
+         }
+         ".";         
+      3: move GateOpening to location;
+         print "^En del av golvet faller undan, och en mörk öppning, likt en brunn, öppnar sig.
+           I brunnen finns en slemmig vätska. Medan han fortsätter att läsa sin
+           besvärjelse går demonen motsols runt brunnen";
+         if(Amulet in player && RedField in location) {
+           print ".^^Amuletten vibrerar våldsamt";
+         }
+         ".";
+      4: print "^Demonen släpper stenarna en och en i brunnen, och vätskan faller undan";
+         if(Amulet in player && RedField in location) {
+           print ".^^Amuletten börjar röra sig av egen kraft emot det röda fältet";
+         }
+         ".";
+      5: print "^Brunnen lyser nu med ett rött sken underifrån. Demonen verkar mycket förväntansfull";
+         if(Amulet in player && RedField in location) {
+           print ".^^Amuletten drar starkt i riktning mot det röda fältet";
+         }
+         ".";
+      6: print "^Skenet blir starkare och ett dovt muller hörs. Demonen vänder sig mot dig
+              och säger ~Porten är öppen. En ny era har börjat~^";
+        Epilogue(1);
+      };
+    ],
+    before [;
+    ThrownAt:
+      if(noun==Amulet && RedField in location) <<Touch RedField noun>>;
+    Touch:
+      if(second==Amulet && RedField in location) <<Touch RedField second>>;
+    ],    
+  has animate;
+
+Object -> RedField "rött kraftfält"
+  with
+    name 'rött' 'kraftfält' 'fält' 'röda' 'kraftfältet' 'fältet' 'magiskt' 'magiska',
+    short_name_def "röda kraftfältet",
+    description "Du kan se igenom det, men det är ett kraftfält här som är hårt som sten.",
+    before [;
+    ThrownAt:
+        if(noun==Amulet) <<Touch second noun>>;
+    Touch:
+      if(second==Amulet) {
+        print "När amuletten nuddar kraftfältet försvinner det!^";
+        RemoveObj(RedField);
+        PlayerTo(GateRoom);
+        rtrue;
+      }
+      rfalse;
+    ],
+    react_before_magic [;
+      "Din besvärjelse är inte kraftfull nog för att bryta igenom kraftfältet.";
+    ],
+  has static concealed container transparent neuter def_article;
+
+Object GateOpening "öppning i golvet"
+  with
+    name 'svart' 'öppning' 'öppningen' 'i//' 'golvet' 'brunn' 'röd' 'glöd' 'slemmig' 'vätska',
+    short_name_def "öppningen i golvet",
+    description "Öppningen i golvet verkar vara porten till de gamla gudarna, som demonen
+                håller på att öppna.",
+  has static concealed;
+
+Object DeadMaster "död kropp"
+  with
+    name 'lärare' 'läraren' 'din' 'lärares' 'döda' 'kropp' 'istar' 'istars',
+    articles "Din" "din" "en",
+    short_name_def "lärares kropp",
+    initial
+      "Din lärares döda kropp ligger på golvet.",
+    description
+      "Han är vit, kall och död som en sill.",
+    domagic [spell;
+      switch(spell) {
+      ResurrectSpell:
+        ReplaceObj(self, ResurrectedMaster);
+        score=score+10;
+        "Först verkar inget hända, men sedan ser du en lätt rodnad på hans kinder.
+        Hans andning är först knappt märkbar, men blir snart stadig igen. Han är
+        medvetslös, men åter vid liv.";
+      HealSpell:
+        "Han är inte sjuk. Han är död.";
+      default: rfalse;
+      };
+    ],
+  has proper male;
+
+Object ResurrectedMaster "lärare"
+  with
+    name 'lärare' 'läraren' 'istar' 'trollkarl' 'trollkarlen' 'medvetslös',
+    short_name_def "läraren",
+    initial
+      "På golvet ligger din lärare. Han är medvetslös, men han andas igen.",
+    description
+      "Han är medvetslös, men vid liv. Hans ansikte har återfått sin färg och han ser frisk ut.",
+    life [; "Han är fortfarande medvetslös."; ],
+  has animate proper;
+
+! -------------- MAGIC -------------------
+Object Amulet "amulett" Beggar
+  with
+    name 'magisk' 'magiska' 'amulett' 'amuletten',
+    short_name_def "amuletten",
+    description
+      "På baksidan står att amuletten kan användas som ett skydd och vapen mot svart magi.",
+  has clothing;
+
+CScroll SilverScroll "silverfärgad pergamentsrulle"
+  with
+    name 'silver' 'silverfärgad' 'pergamentsrulle' 'silverfärgade' 'pergamentsrullen' 'rullen' 'rulle',
+    short_name_def "silverfärgade pergamentsrullen",
+  has def_article;
+
+CComplicatedScroll BlackScroll "svart pergamentsrulle" MountainHall
+  with
+    name 'svart' 'pergamentsrulle' 'svarta' 'pergamentsrullen' 'rullen' 'rulle',
+    short_name_def "svarta pergamentsrullen",
+    initial "Du ser en pergamentsrulle inkilad mellan två lådor.",
+  has def_article;
+
+CSpell TeleportSpell "teleporteringsbesvärjelse" SilverScroll
+  with
+    name 'teleporteringsbesvärjelse' 'teleporteringsbesvärjelsen' 'besvärjelse' 'besvärjelsen',
+    short_name_def "teleporteringsbesvärjelsen",
+    comment "flytta dig till en ny plats",
+    domagic [;
+      print "Ett gult moln omger dig, och när det lättar befinner du dig...^";
+      PlayerTo(TeleportRoom);
+      if(player has general) {
+        give player ~general;
+        print "^Du märker till din lättnad att teleporteringen verkar ha tagit bort din fiskförvandling.^";
+      }
+    ],
+  ;
+
+CSpellWithArgument AnimateSpell "animeringsbesvärjelse"
+  with
+    name 'animeringsbesvärjelse' 'animeringsbesvärjelsen' 'besvärjelse' 'besvärjelsen',
+    short_name_def "animeringsbesvärjelsen",
+    comment "ge liv åt något",
+    domagic [obj;
+      if(obj provides domagic) if(obj.domagic(self)) rtrue;
+      if(obj has animate) print_ret (The) obj, " är redan vid liv.";
+
+      print_ret (The) obj, " får liv, springer omkring ett tag och stelnar till igen.";
+    ],
+  ;
+
+CSpellWithArgument FreezeSpell "frysbesvärjelse"
+  with
+    name 'frysbesvärjelse' 'frysbesvärjelsen' 'besvärjelse' 'besvärjelsen',
+    short_name_def "frysbesvärjelsen",
+    comment "frys något",
+    domagic [obj;
+      if(obj provides domagic) if(obj.domagic(self)) rtrue;
+
+      print_ret "Ett tunt lager is täcker ", (the) obj, 
+            ", men smälter snart bort.";
+    ],
+  ;
+
+CSpellWithArgument HealSpell "helningsbesvärjelse"
+  with
+    name 'helningsbesvärjelse' 'helningsbesvärjelsen' 'besvärjelse' 'besvärjelsen',
+    short_name_def "helningsbesvärjelsen",
+    comment "hela någon",
+    domagic [obj;
+      if(obj provides domagic) if(obj.domagic(self)) rtrue;
+      if(obj hasnt animate) "Du kan endast hela levande varelser.";
+
+      print_ret (The) obj, " ser friskare ut än någonsin.";
+    ],
+  ;
+
+CSpellWithArgument KillSpell "dödsbesvärjelse"
+  with
+    name 'dödsbesvärjelse' 'dödsbesvärjelsen',
+    short_name_def "dödsbesvärjelsen",
+    comment "döda någon",
+    domagic [obj;
+      if(obj provides domagic) if(obj.domagic(self)) rtrue;
+      if(obj hasnt animate) print_ret (The) obj ," är redan död.";
+
+      RemoveObj(obj);
+      print_ret "En rött sken omger ", (the) obj, ". För ett ögonblick
+            verkar ", (the) obj, " glöda av ett inre ljus och du kan se benen genom huden.
+            Därefter smälter kroppen ihop och går upp i rök.";
+    ],
+  ;
+
+CSpellWithArgument ResurrectSpell "återuppståndelsebesvärjelse" BlackScroll
+  with
+    name 'återuppståndelsebesvärjelse' 'återuppståndelse' 'besvärjelse' 'besvärjelsen',
+    short_name_def "återuppståndelsebesvärjelsen",
+    comment "får de döda att återuppstå",
+    domagic [obj;
+      if(obj provides domagic) if(obj.domagic(self)) rtrue;
+
+      print_ret "Inget händer.";
+    ],
+  ;
+
+! -------------- Objects -------------------
+
+Object BackPack "ryggsäck"
+  with
+    articles "Din" "din" "en",
+    name 'ryggsäck' 'ryggsäcken' 'rygga' 'ryggan',
+    description
+      "Den ser ut som en vanlig ryggsäck, men den är lite speciell. Oavsett hur mycket
+       du stoppar i den blir den vare sig tyngre eller full. En mycket praktisk gåva som
+       din första lärare i magi gav dig för länge sedan.",
+    when_closed "Din ryggsäck ligger på golvet.",
+    when_open "Din öppna ryggsäck ligger på golvet.",
+    has container open openable;
+
+! ---------- The treasures -------------
+Class CStone 
+  with 
+    name 'sten' 'stenen' 'stenar//p' 'stenarna//p',
+    plural "stenar";
+
+CStone BlackStone "svart sten" Master
+    with
+      name 'svart' 'svarta',
+      short_name_def "svarta stenen",
+      description "Stenen består av en bit halvgenomskinlig kvarts, med en svart fläck i mitten.",
+  has def_article;
+
+CStone GreenStone "grön sten" Cave
+    with
+      name 'grön' 'gröna',
+      short_name_def "gröna stenen",
+      initial "Något gnistrar i leran vid ingången. Det är en grön sten!",
+      description "Den är grön, men i övrigt identisk med din lärares svarta sten.",
+  has def_article;
+
+CStone BlueStone "blå sten" OceanFloor
+    with
+      name 'blå' 'blåa',
+      short_name_def "blå stenen",
+      description "Den är blå men i övrigt identisk med din lärares svarta sten.",
+  has def_article;
+
+CStone RedStone "röd sten" Busker
+    with
+      name 'röd' 'röda',
+      short_name_def "röda stenen",
+      description "Den är röd, men i övrigt identisk med din lärares svarta sten.",
+  has def_article;
+
+Array WantedStones --> 4 1 BlackStone 0 GreenStone 0 BlueStone 0 RedStone;
+
+Object Introduction "sammanfattning" Master
+  with
+    name 'papper' 'sammanfattning' 'sammanfattningen' 'rapport' 'papper' 'pappret',
+    short_name_def "sammanfattningen",
+    description [;
+      print_ret "På pappret har din lärare skrivit ned vad han upptäckt under sina studier av svart magi.^^\
+      Vår nuvarande tidsålder kommer snart att ge vika åt en tid av terror och fruktan, när de gamla
+      gudarna återvänder till jorden. Det kan betyda slutet för mänskligheten. Sedan han tvingades
+      lämna magikerskolan har han försökt att finna ett sätt att fördröja de onda makternas återkomst.
+      Det finns en möjlighet. Genom att öppna en port till en annan dimension kan han öppna ett flöde
+      av vit magi kraftfull nog att stävja de onda gudarna, men för att öppna porten behöver han ",
+      (number) WantedStones-->0, " stenar. Han har redan en av dem, en svart sten, och han behöver
+      din hjälp för att hitta de övriga.";
+    ],
+  ;
+
+! ----------------------------------------------------------------------------
+!   Menu-driven help
+! ----------------------------------------------------------------------------
+
+[ HelpSub;
+  if(deadflag==2) {
+    DoMenu("Det finns information om följande:^\
+            ^     Introduktion\
+            ^     Hur man spelar\
+            ^     Tack\
+            ^     Ledtrådar\
+            ^     Roliga saker^",
+            HelpMenu, HelpInfo);
+  } else {
+    DoMenu("Det finns information om följande:^\
+            ^     Introduktion\
+            ^     Hur man spelar\
+            ^     Tack\
+            ^     Ledtrådar^",
+            HelpMenu, HelpInfo);
+  }
+];
+
+[ HelpMenu;
+  switch(menu_item) {
+  0: item_width=6;item_name="Om detta spel";
+     if(deadflag==2) return 5; else return 4;
+  1: item_width=6;item_name="Introduktion";
+  2: item_width=7; item_name="Hur man spelar";
+  3: item_width=2; item_name="Tack";
+  4: item_width=4; item_name="Ledtrådar";
+  5: item_width=6;item_name="Roliga saker";
+  }
+];
+
+[ HintMenu;
+  switch(menu_item) {
+  0: item_width=4;  item_name="Ledtrådar"; return 11;
+  1: item_width=6;  item_name="Samla stenar";
+  2: item_width=7;  item_name="Förflyttningar";
+  3: item_width=12; item_name="Den tomma pergamentrullen";
+  4: item_width=16; item_name="Hur kan man vinna över nasaren?";
+  5: item_width=14; item_name="Vad ska man göra med myntet?";
+  6: item_width=13; item_name="Vad ska man göra i templet?";
+  7: item_width=10; item_name="Var hittar jag draken?";
+  8: item_width=10; item_name="Hur dödar man draken?";
+  9: item_width=13; item_name="Hur bryter man kraftfältet?";
+ 10: item_width=23; item_name="Jag har brutit kraftfältet men är ändå maktlös";
+ 11: item_width=19; item_name="Jag tycker inte om det olyckliga slutet";
+  }
+];
+
+[ HintInfo;
+  switch(menu_item) {
+  1: print "Din lärare behöver stenarna. Hitta dem och lägg dem i den gyllene lådan.^";
+     if(HintPause()) break;
+     print "När du funnit alla så kan han öppna porten.^";
+     if(HintPause()) break;
+     print "Spara spelet innan du lägger ned den sista stenen. Något oväntat kommer att hända.^";
+     LastHintPause();
+  2: print "Din lärare ber dig resa lång väg för att hitta stenarna, och ger dig lite hjälp på traven.^";
+     if(HintPause()) break;
+     print "Visst fick du en pergamentsrulle av honom när du lämnade honom?^";
+     if(HintPause()) break;
+     print "Kopiera teleporteringsbesvärjelsen till din magibok, och använd denna när du vill förflytta dig långt bort.^";
+     if(HintPause()) break;
+     print "Skriv ~teleportera~ och se vad som händer.^";
+     LastHintPause();
+  3: print "Din lärare har stor erfaranhet av magi.^";
+     if(HintPause()) break;
+     print "Visa honom den tomma pergamentsrullen.^";
+     LastHintPause();
+  4: print "Han är fingerfärdig, och snabbare än du.^";
+     if(HintPause()) break;
+     print "Du måste fuska.^";
+     if(HintPause()) break;
+     print "Använd dina kunskaper i magi.^";
+     if(HintPause()) break;
+     print "Tänk om kopparna kunde tala.^";
+     if(HintPause()) break;
+     print "Eller åtminstone röra sig.^";
+     if(HintPause()) break;
+     print "Använd animeringsbesvärjelsen på bänken eller en av kopparna.^";
+     LastHintPause();
+  5: print "Om du vill spela med nasaren behöver du myntet.^";
+     if(HintPause()) break;
+     print "Du har bara ett mynt så du lär aldrig se det igen om du förlorar. Gör inte det!^";
+     if(HintPause()) break;
+     print "Men vad har du för nytta av pengar. Dela med dig till de mindre lyckligt lottade.^";
+     LastHintPause();
+  6: print "Be^";
+     if(HintPause()) break;
+     print "Kliar det? Kanske en simtur hjälper?^";
+     if(HintPause()) break;
+     print "Inte det? Kanske dags för en ny bönestund?^";
+     LastHintPause();
+  7: print "Drakar föredrar att bo i bergshålor.^";
+     if(HintPause()) break;
+     print "Har du sett några berg?^";
+     if(HintPause()) break;
+     print "Gå igenom den norra dörren efter teleporteringen.^";
+     if(HintPause()) break;
+     print "Det finns en grotta i berget.^";
+     if(HintPause()) break;
+     print "Det finns en tunnel i grottan.^";
+     if(HintPause()) break;
+     print "Du har en besvärjelse för att få saker att lysa.^";
+     if(HintPause()) break;
+     print "Illuminera ryggsäcken^";
+     LastHintPause();
+  8: print "Någon kan kanske hjälpa dig?^";
+     if(HintPause()) break;
+     print "Är den tomma permagentsrullen fortfarande tom?^";
+     if(HintPause()) break;
+     print "Marken sluttar brant nedåt, eller hur?^";
+     if(HintPause()) break;
+     print "Det kanske inte är halt nog?^";
+     if(HintPause()) break;
+     print "Att döda drakar utan hjälp verkar våghalsigt.^";
+     if(HintPause()) break;
+     print "Har du frågat din lärare om drakar?^";
+     if(HintPause()) break;
+     print "Animera statyerna och frys backen. Låt statyerna såra draken, och hela den efteråt.
+           Fråga draken om magi.^";
+     LastHintPause();
+  9: print "Har du något föremål som användas mot svart magi?^";
+     if(HintPause()) break;
+     print "Om inte, så har du inte använt myntet klokt.^";
+     if(HintPause()) break;
+     print "Rör kraftfältet med amuletten.^";
+     LastHintPause();
+ 10: print "Din magi är för svag.^";
+     if(HintPause()) break;
+     print "Du behöver något kraftigare.^";
+     if(HintPause()) break;
+     print "Nämligen drakmagi.^";
+     if(HintPause()) break;
+     print "Hjälp draken så får du en kraftfull besvärjelse.^";
+     if(HintPause()) break;
+     print "Kasta dödsbesvärjelsen mot demonen.^";
+     LastHintPause();
+ 11: print "Din lärare dör. Du kan inte förhindra det...^";
+     if(HintPause()) break;
+     print "men du kan väcka upp honom från de döda.^";
+     if(HintPause()) break;
+     print "Du behöver en besvärjelse som finns i en grotta.^";
+     LastHintPause();
+  }
+  return 2;
+];
+
+[ HelpInfo;
+  switch(menu_item) {
+  1: print "Detta spel påminner mycket om de äventyrsspel som Infocom skrev på åttiotalet.
+           Spelaren skriver vad han/hon vill göra, och spelet berättar vad som händer.^^\
+           Du kan inte klara spelet utan att använda magi. Du kan läsa besvärjelser från
+           pergamentsrullar eller din besvärjelsebok. Du kan också memorera ett antal
+           besvärjelser, men eftersom de är komplicerade kommer du att glömma dem
+           när du sover. Så länge du har din besvärjelsebok till hands kan du läsa direkt
+           ifrån den istället.^^
+           Alla verktyg som behövs för att skriva ett spel som detta är gratis. Om du
+           vill skriva ett själv kan du gå till 
+           http://swedish.ramsberg.net för mer information. Där finns även den kompletta
+           källkoden till detta spel.^";
+  2: print "Du bör ha en interpretator som kan hantera svenska tecken. Besök
+      http://swedish.ramsberg.net om du behöver hjälp med detta. För att kunna skriva
+      svenska tecken i en interpretator som inte klarar det, eller med ett tangentbord
+      som inte har dessa tecken, skriv ~transkription~ i spelet. Därefter kan du
+      skriva å som aa, ä som ae och ö som oe. Skriv ~transkription av~ för att stänga
+      av transkriptionsfunktionen igen.^^\
+
+     I detta spel kontrollerar du huvudrollsinnehavaren genom att skriva in kommandon
+     som talar om vad denne ska göra. Exempel på dessa kommandon är:^^\
+
+     > se (se dig omkring)^\
+     > norr (gå norr från där du står just nu)^\
+     > lista (visa en lista på de föremål du bär på)^\
+     > ta kartan^\
+     > undersök den (~den~ syftar här på kartan (*))^\
+     > ge kartan till kvinnan^\
+     > Kalle, öppna dörren (be någon göra något)^\
+     > fråga Kalle om kartan (fråga om något)^\
+     > kasta kniven på den svarta fågeln^^\
+
+     (*) Vilket föremål ~den~ syftar på ändras dels när du refererar till ett föremål,
+     men även när du kommer till en ny plats eller listar de föremål du bär på. Förutom
+     ~den~ finns det även ~det~, ~honom~, ~henne~ och ~dem~. Du kan när som helst under
+     spelets gång skriva ~pronomen~ för att få reda på vad de refererar till.^^\
+
+     Det finns några vanliga förkortningar:^^\
+     g = igen (repetera det senaste kommandot)^\
+     t = titta^\
+     l = lista^\
+     x = undersök^\
+     z = vänta (får spelets klocka att ticka vidare ett steg)^^\
+     De möjliga riktningarna är alla kompassriktningar plus upp och ned. Dessa kan också förkortas:
+     ~n~ betyder norr, ~u~ betyder upp, ~sv~ betyder sydväst osv.^^\
+
+     Ett spel kan sparas med ~spara~ och ett sparat spel kan senare hämtas med ~hämta~. Du kan börja om
+     spelet med ~börja om~ och sluta spelet med ~avsluta~.
+     ~poäng~ visar hur många poäng du har fått och ~full poäng~ ger mer information
+     om vilka delmoment av spelet du klarat av. När du får poäng talar spelet om detta, men utskriften
+     går att kontrollera med ~meddelanden på~ och ~meddelanden av~^^\
+
+     Om du gör ett misstag kan du backa spelet ett steg med ~ångra~. Om du stavar ett ord fel kan du
+     använda ~oj~ för att slippa skriva om hela kommandot en gång till.^^\
+     > ta kortan^\
+     Någon sådan ser du inte till.^\
+     > oj koftan^\
+     Tagen.^^\
+
+     Den första gången du kommer till en plats visas en lång beskrivning men nästa gång du kommer dit
+     får du bara namnet på platsen samt en kort lista med de viktigaste föremålen. Du kan ändra på detta
+     med kommandona
+     ~kort~ som alltid visar den korta listan, ~lång~  som alltid visar den långa beskrivningen och
+     ~normal~ återställer spelet till det normala beteendet som beskrevs innan.
+     Andra kommandon är ~saker~ som visar vilka sakerna du manipulerat, ~platser~
+     som visar en lista med platser du besökt samt ~utskrift på~ respektive ~utskrift av~ som
+     påbörjar och avslutar lagring av all speltext på en fil.^";
+  3: print "Detta spel är skrivet i Inform, som är ett programmeringsspråk speciellt
+           utvecklat för äventyrsspel. Inform är gjort av Graham Nelson. Stödet för
+           svenska har skrivits av Fredrik Ramsberg. Staffan Friberg och Fredrik Ramsberg
+           har hjälpt mig hitta fel.^^\
+           Skriv gärna en rad om du har någon åsikt eller förslag till förbättringar. Jag
+           kan nås på johan@@64microheaven.com^";
+  4: DoMenu("Välj problem:^
+             ^     Samla stenar
+             ^     Förflyttningar
+             ^     Den tomma pergamentrullen
+             ^     Hur kan man vinna över nasaren?
+             ^     Vad ska man göra med myntet?
+             ^     Vad ska man göra i templet?
+             ^     Var hittar jag draken?
+             ^     Hur dödar man draken?
+             ^     Hur bryter man kraftfältet?
+             ^     Jag har brutit kraftfältet men är ändå maktlös
+             ^     Jag tycker inte om det olyckliga slutet",
+             HintMenu, HintInfo);
+     return 2;
+  5: print "\
+           * Döda din lärare med en besvärjelse?^^\
+           ";
+  }
+];
+
+[ LastHintPause pkey;
+  print "^Sista ledtråden. Tryck mellanslag. ";
+  pkey=KeyCharPrimitive();
+];
+
+[ HintPause pkey;
+  print "^Tryck x för att sluta, eller mellanslag för nästa ledtråd: ";
+  pkey=KeyCharPrimitive();
+  print "^^";
+
+  if(pkey=='X' or 'x' or 27 or 131) rtrue;
+  rfalse;
+];
+

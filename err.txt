@@ -1,0 +1,4 @@
+Running: bres game.res game.blc game.bli
+bres: Blorb Resource Compiler (Jun 13 2000)
+Version .3b by L. Ross Raszewski
+bres: Error: (before compilation): Cannot open input file "game.res"

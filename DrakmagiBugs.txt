@@ -1,0 +1,92 @@
+Fixas troligen i Swedish-filerna
+--------------------------------
+
+"läs på <noun>" ska fungera
+Fixat i SwedishG.h.
+
+"dra statyn" och liknande verb i templet ger bara svaret "Det"
+Fixat i Swedish.h.
+
+"snurra staty" "vrid staty" och "vrid på staty" ska kännas igen
+Fixat i SwedishG.h.
+
+"Det kan du bara göra med något levande." används opassande när man skriver
+t ex "ge myntet till [okänt ord]".
+Standardbeteende för biblioteket. Tveksamt om det ska ändras.
+
+Fixas troligen i Drakmagi
+=========================
+
+Triviala fixar
+--------------
+
+"En stig leder norrut mot ett templet."
+###
+
+"Du kan inte gå däråt." ska bytas ut på havsbotten.
+###
+
+"vädersträck" ska heta "väderstreck" på stäppen.
+###
+
+Känn igen "trälåda" "trälådan" "magisk" "magiska".
+###
+
+Ord saknas: "Vad sägs om pröva lyckan?"
+###
+
+"Öster om byn mittpunkt" - byns!
+###
+
+"går säker bättre nästan gång" - ska vara "säkert" och "nästa"
+###
+
+"högen" bör funka som synonym till "hög med värdesaker".
+###
+
+De animerade statyerna "slås" med varandra - slåss!
+###
+
+Ledtrådarna säger "frys backen", men "backen" känns inte igen.
+###
+
+"amuletten" ska kännas igen.
+###
+
+"ett bländande ljussken lyser upp rummet", även utomhus.
+###
+
+Teleportera ger meddelandet: "befinner du dig i... Stäpp" - omformulera.
+###
+
+"Undersök läraren. Väck upp honom från de döda" funkar inte. Spelet tror att
+honom betyder demonen, pga att lärarens döda kropp inte har male-attributet.
+###
+
+Något mindre triviala fixar
+---------------------------
+Nasaren ger nytt gratisspel efter "animera högra koppen", i vissa lägen. Bugg!
+###
+
+Man borde få flera chanser att spela så att man utan att starta om kan förstå
+att man aldrig kommer vinna utan fusk.
+### en ny chans ges
+
+Man "hänger med" i koppflyttningarna även om man lämnar byn och kommer 
+tillbaka.
+###
+
+"Du ser inget speciellt med demonen.". Den borde ha en ordentligt beskrivning.
+###
+
+Om man dödar och återuppväcker draken hjälper den inte till.
+### det gör den visst. Jag kan inte återskapa detta fel.
+
+Inga ledtrådar och för få möjliga formuleringar för att bryta kraftfältet.
+### "kasta amulett på demon. rör demon med amulett" och ledtrådar implementerade.
+
+Amulettbeskrivningen ger intrycket att amuletten bara ska bäras, så ger den
+ett skydd mot svartmagi. Att den kan användas aktivt som i "kasta amuletten på 
+kraftfältet" framgår inte.
+### något bättre formulering
+

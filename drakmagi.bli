@@ -1,0 +1,15 @@
+! Blorb Resource Definitions File
+! Generated automatically by bres.
+! Do not edit!
+
+! Include this file in your inform source with "Include "drakmagi.bli";"
+
+Message "Including bres resource declarations generated on Jun 13 2000";
+
+Constant PicDragon 3;	!Blorb Pict:dragon.png
+Constant PicHut 4;	!Blorb Pict:pic5a.png
+Constant PicTeleport 5;	!Blorb Pict:teleport.png
+Constant PicChurch 6;	!Blorb Pict:pic1a.png
+Constant PicWave 7;	!Blorb Pict:pic2a.png
+Constant PicWood 8;	!Blorb Pict:pic4a.png
+Constant PicVillage 9;	!Blorb Pict:pic3a.png
